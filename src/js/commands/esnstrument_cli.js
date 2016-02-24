@@ -84,22 +84,34 @@ if (typeof J$ === 'undefined') {
             var instname = makeInstCodeFileName(origname), instCodeAndData;
 
             try {
+                // If the rewriting-proxy module provides location info for the inline script,
+                // then include it at runtime (by default disabled, but can be enabled by the
+                // nodeVisitorModule, by setting exports.locationInfo = true).
+                var sourceInfoExtension = null;
+                if (metadata && metadata.node && metadata.node.__location) {
+                    var location = metadata.node.__location;
+                    sourceInfoExtension = { location: { line: location.line, col: location.col } };
+                }
                 instCodeAndData = instrumentCode(
                     {
+                        applyASTHandler: function (instCodeAndData) {
+                            instUtil.applyASTHandler(instCodeAndData, astHandler, sandbox, metadata);
+                        },
                         code: src,
                         isEval: false,
                         origCodeFileName: sanitizePath(origname),
                         instCodeFileName: sanitizePath(instname),
                         inlineSourceMap: inlineIID,
                         inlineSource: inlineSource,
+                        sourceInfoExtension: sourceInfoExtension,
                         url: url
                     });
-
             } catch (e) {
-                console.log(src);
+                console.error('Failure during inline script instrumentation:', e.message + ' (' + e.name + ').');
+                console.error('Source:', src);
+                console.error('Metadata:', metadata);
                 throw e;
             }
-            instUtil.applyASTHandler(instCodeAndData, astHandler, sandbox);
             fs.writeFileSync(path.join(outDir, origname), src, "utf8");
             fs.writeFileSync(makeSMapFileName(path.join(outDir, instname)), instCodeAndData.sourceMapString, "utf8");
             fs.writeFileSync(path.join(outDir, instname), instCodeAndData.code, "utf8");
@@ -109,46 +121,6 @@ if (typeof J$ === 'undefined') {
 
     function getJalangiRoot() {
         return path.join(__dirname, '../../..');
-    }
-
-
-    function insertStringAfterBeforeTag(originalCode, injectedCode, lowerCaseTag, upperCaseTag, isAppend) {
-        var headIndex;
-
-        if (isAppend) {
-            headIndex = originalCode.lastIndexOf(lowerCaseTag);
-        } else {
-            headIndex = originalCode.indexOf(lowerCaseTag);
-        }
-        if (headIndex === -1) {
-            if (isAppend) {
-                headIndex = originalCode.lastIndexOf(upperCaseTag);
-            } else {
-                headIndex = originalCode.indexOf(upperCaseTag);
-            }
-            if (headIndex === -1) {
-                if (isAppend) {
-                    console.error("WARNING: could not find "+lowerCaseTag+" element in HTML file " + this.filename);
-                    originalCode = originalCode + injectedCode;
-                } else {
-                    console.error("WARNING: could not find " + lowerCaseTag + " element in HTML file " + this.filename);
-                    originalCode = injectedCode + originalCode;
-                }
-            } else {
-                if (isAppend) {
-                    originalCode = originalCode.slice(0, headIndex) + injectedCode + originalCode.slice(headIndex);
-                } else {
-                    originalCode = originalCode.slice(0, headIndex + upperCaseTag.length) + injectedCode + originalCode.slice(headIndex + upperCaseTag.length);
-                }
-            }
-        } else {
-            if (isAppend) {
-                originalCode = originalCode.slice(0, headIndex) + injectedCode + originalCode.slice(headIndex);
-            } else {
-                originalCode = originalCode.slice(0, headIndex + lowerCaseTag.length) + injectedCode + originalCode.slice(headIndex + lowerCaseTag.length);
-            }
-        }
-        return originalCode;
     }
 
     function instrumentFile() {
@@ -162,6 +134,7 @@ if (typeof J$ === 'undefined') {
         parser.addArgument(['--initParam'], { help: "initialization parameter for analysis, specified as key:value", action:'append'});
         parser.addArgument(['--noResultsGUI'], { help: "disable insertion of results GUI code in HTML", action:'storeTrue'});
         parser.addArgument(['--astHandlerModule'], {help: "Path to a node module that exports a function to be used for additional AST handling after instrumentation"});
+        parser.addArgument(['--nodeVisitorModule'], {help: "Path to a node module that exports a function to be used for additional HTML node handling after instrumentation"});
         parser.addArgument(['--outDir'], {
             help: "Directory containing scripts inlined in html",
             defaultValue: process.cwd()
@@ -190,6 +163,11 @@ if (typeof J$ === 'undefined') {
         if (args.astHandlerModule) {
             astHandler = require(args.astHandlerModule);
         }
+        var nodeVisitor = {};
+        if (args.nodeVisitorModule) {
+            nodeVisitor = require(args.nodeVisitorModule);
+        }
+
         var initParams = args.initParam;
         inlineIID = args.inlineIID;
         inlineSource = args.inlineSource;
@@ -215,34 +193,80 @@ if (typeof J$ === 'undefined') {
 
         var inlineRewriter = rewriteInlineScript(astHandler);
         if (fileName.endsWith(".js")) {
-            instCodeAndData = instrumentCode(
-                {
-                    code: origCode,
-                    isEval: false,
-                    origCodeFileName: sanitizePath(fileName),
-                    instCodeFileName: sanitizePath(instFileName),
-                    inlineSourceMap: inlineIID,
-                    inlineSource: inlineSource,
-                    url: url
-                });
-            instUtil.applyASTHandler(instCodeAndData, astHandler, sandbox);
-            fs.writeFileSync(makeSMapFileName(instFileName), instCodeAndData.sourceMapString, "utf8");
-            fs.writeFileSync(instFileName, instCodeAndData.code, "utf8");
-        } else {
-            var jalangiRoot = getJalangiRoot();
-            instCode = proxy.rewriteHTML(origCode, "http://foo.com", inlineRewriter, "");
+            var metadata = {
+                type: 'script',
+                inline: false,
+                url: fileName
+            };
 
-            var headerStr = '<meta http-equiv="Content-Type" content="text/html; charset=utf-8">';
-            headerStr += instUtil.getInlinedScripts(analyses, initParams, extraAppScripts, EXTRA_SCRIPTS_DIR, jalangiRoot);
-            // just inject our header code
-            instCode = insertStringAfterBeforeTag(instCode, headerStr, "<head>", "<HEAD>", false);
-
-            if (!args.noResultsGUI) {
-                var extraHtmlString = instUtil.getFooterString(jalangiRoot);
-                instCode = insertStringAfterBeforeTag(instCode, extraHtmlString, "</body>", "</BODY>", true);
+            try {
+                instCodeAndData = instrumentCode(
+                    {
+                        applyASTHandler: function (instCodeAndData) {
+                            instUtil.applyASTHandler(instCodeAndData, astHandler, sandbox, metadata);
+                        },
+                        code: origCode,
+                        isEval: false,
+                        origCodeFileName: sanitizePath(fileName),
+                        instCodeFileName: sanitizePath(instFileName),
+                        inlineSourceMap: inlineIID,
+                        inlineSource: inlineSource,
+                        url: url
+                    });
+                fs.writeFileSync(makeSMapFileName(instFileName), instCodeAndData.sourceMapString, "utf8");
+                fs.writeFileSync(instFileName, instCodeAndData.code, "utf8");
+            } catch (e) {
+                if (e.name === 'SyntaxError') {
+                    console.error('SyntaxError:', fileName);
+                    fs.writeFileSync(instFileName, origCode, "utf8");
+                } else {
+                    console.error('Failure during external script instrumentation:', e.message + ' (' + e.name + ').');
+                    console.error('Source:', origCode);
+                    console.error('Metadata:', metadata);
+                    throw e;
+                }
             }
+        } else {
+            // HTML will never be instrumented online, so it is safe to use require here!
+            var parse5 = require('parse5');
 
-            fs.writeFileSync(instFileName, instCode, "utf8");
+            try {
+                var jalangiRoot = getJalangiRoot();
+                var options = {
+                    onNodeVisited: function (node) {
+                        var newNode;
+
+                        if (nodeVisitor.visitor) {
+                            nodeVisitor.visitor(node);
+                        }
+
+                        switch (node.tagName) {
+                            case 'head':
+                                var fragment = parse5.parseFragment(
+                                    '<meta http-equiv="Content-Type" content="text/html; charset=utf-8">' +
+                                    instUtil.getInlinedScripts(analyses, initParams, extraAppScripts, EXTRA_SCRIPTS_DIR, jalangiRoot)
+                                );
+                                Array.prototype.unshift.apply(node.childNodes, fragment.childNodes);
+                                break;
+
+                            case 'body':
+                                if (!args.noResultsGUI) {
+                                    var fragment = parse5.parseFragment(instUtil.getFooterString(jalangiRoot));
+                                    Array.prototype.push.apply(node.childNodes, fragment.childNodes);
+                                }
+                                break;
+                        }
+                    },
+                    locationInfo: nodeVisitor.locationInfo
+                };
+
+                instCode = proxy.rewriteHTML(origCode, "http://foo.com", inlineRewriter, null, null, options);
+                fs.writeFileSync(instFileName, instCode, "utf8");
+            } catch (e) {
+                console.error('Failure during HTML instrumentation:', e.message + ' (' + e.name + ').');
+                console.error('Source:', origCode);
+                throw e;
+            }
         }
     }
 

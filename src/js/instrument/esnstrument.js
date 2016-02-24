@@ -1905,7 +1905,7 @@ if (typeof J$ === 'undefined') {
     /**
      * Instruments the provided code.
      *
-     * @param {{isEval: boolean, code: string, thisIid: int, origCodeFileName: string, instCodeFileName: string, inlineSourceMap: boolean, inlineSource: boolean, url: string, isDirect: boolean }} options
+     * @param {{applyASTHandler: function, isEval: boolean, code: string, thisIid: int, origCodeFileName: string, instCodeFileName: string, inlineSourceMap: boolean, inlineSource: boolean, url: string, isDirect: boolean }} options
      * @return {{code:string, instAST: object, sourceMapObject: object, sourceMapString: string}}
      *
      */
@@ -1916,8 +1916,8 @@ if (typeof J$ === 'undefined') {
 
         iidSourceInfo = {};
         initializeIIDCounters(isEval);
-        instCodeFileName = options.instCodeFileName ? options.instCodeFileName : (options.isDirect?"eval":"evalIndirect");
-        origCodeFileName = options.origCodeFileName ? options.origCodeFileName : (options.isDirect?"eval":"evalIndirect");
+        instCodeFileName = options.instCodeFileName ? options.instCodeFileName : (options.isDirect ? "eval" : "evalIndirect");
+        origCodeFileName = options.origCodeFileName ? options.origCodeFileName : (options.isDirect ? "eval" : "evalIndirect");
 
 
         if (sandbox.analysis && sandbox.analysis.instrumentCodePre) {
@@ -1928,24 +1928,22 @@ if (typeof J$ === 'undefined') {
             }
         }
 
-        if (!skip && typeof code === 'string' && code.indexOf(noInstr) < 0) {
-            try {
-                code = removeShebang(code);
-                iidSourceInfo = {};
-                var newAst;
-                if (Config.ENABLE_SAMPLING) {
-                    newAst = transformString(code, [visitorCloneBodyPre, visitorRRPost, visitorOps, visitorMergeBodyPre], [undefined, visitorRRPre, undefined, undefined]);
-                } else {
-                    newAst = transformString(code, [visitorRRPost, visitorOps], [visitorRRPre, undefined]);
-                }
-                // post-process AST to hoist function declarations (required for Firefox)
-                var hoistedFcts = [];
-                newAst = hoistFunctionDeclaration(newAst, hoistedFcts);
-                var newCode = esotope.generate(newAst, {comment: true});
-                code = newCode + "\n" + noInstr + "\n";
-            } catch(ex) {
-                console.log("Failed to instrument "+code+"\n"+ex);
+        var newAst;
+        var instrument = !skip && typeof code === 'string' && code.indexOf(noInstr) < 0;
+        if (instrument) {
+            code = removeShebang(code);
+            iidSourceInfo = {};
+            if (Config.ENABLE_SAMPLING) {
+                newAst = transformString(code, [visitorCloneBodyPre, visitorRRPost, visitorOps, visitorMergeBodyPre], [undefined, visitorRRPre, undefined, undefined]);
+            } else {
+                newAst = transformString(code, [visitorRRPost, visitorOps], [visitorRRPre, undefined]);
             }
+            // post-process AST to hoist function declarations (required for Firefox)
+            var hoistedFcts = [];
+            newAst = hoistFunctionDeclaration(newAst, hoistedFcts);
+        } else {
+            // Such that newAst is not undefined
+            newAst = acorn.parse('undefined');
         }
 
         var tmp = {};
@@ -1964,23 +1962,41 @@ if (typeof J$ === 'undefined') {
             tmp.code = iidSourceInfo.code = options.code;
         }
 
-        var prepend = JSON.stringify(iidSourceInfo);
-        var instCode;
-        if (options.inlineSourceMap) {
-            instCode = JALANGI_VAR + ".iids = " + prepend + ";\n" + code;
-        } else {
-            instCode = JALANGI_VAR + ".iids = " + JSON.stringify(tmp) + ";\n" + code;
-        }
-
-        if (isEval && sandbox.analysis && sandbox.analysis.instrumentCode) {
-            aret = sandbox.analysis.instrumentCode(thisIid, instCode, newAst, options.isDirect);
-            if (aret) {
-                instCode = aret.result;
+        if (options.sourceInfoExtension) {
+            for (var key in options.sourceInfoExtension) {
+                tmp[key] = iidSourceInfo[key] = options.sourceInfoExtension[key];
             }
         }
 
-        return {code: instCode, instAST: newAst, sourceMapObject: iidSourceInfo, sourceMapString: prepend};
+        var prepend = JSON.stringify(iidSourceInfo);
+        var prefix, prefixAst;
+        if (options.inlineSourceMap) {
+            prefix = JALANGI_VAR + ".iids = " + prepend + ";";
+        } else {
+            prefix = JALANGI_VAR + ".iids = " + JSON.stringify(tmp) + ";";
+        }
+        prefixAst = acorn.parse(prefix);
+        Array.prototype.unshift.apply(newAst.body, prefixAst.body);
 
+        if (isEval && sandbox.analysis && sandbox.analysis.instrumentCode) {
+            // It is expensive to serialize and reparse HTML, ideally
+            // analysis.instrumentCode should only be allowed to mutate newAst
+            var instCode = esotope.generate(newAst, {comment: true, format: esotope.FORMAT_MINIFY});
+            aret = sandbox.analysis.instrumentCode(thisIid, instCode, newAst, options.isDirect);
+            if (aret) {
+                newAst = acorn.parse(aret.result);
+            }
+        }
+
+        var result = {instAST: newAst, sourceMapObject: iidSourceInfo, sourceMapString: prepend};
+        if (options.applyASTHandler) {
+            options.applyASTHandler(result);
+        }
+        result.code = esotope.generate(newAst, {comment: true, format: esotope.FORMAT_MINIFY});
+        if (instrument) {
+            result.code += "\n" + noInstr + "\n";
+        }
+        return result;
     }
 
     sandbox.instrumentCode = instrumentCode;

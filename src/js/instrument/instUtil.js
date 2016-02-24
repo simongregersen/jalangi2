@@ -116,14 +116,10 @@ function genInitParamsCode(initParams) {
     return "<script>J$.initParams = " + JSON.stringify(initParamsObj) + ";</script>";
 }
 
-function applyASTHandler(instResult, astHandler, sandbox) {
-    if (astHandler && instResult.instAST) {
-        var info = astHandler(instResult.instAST);
-        if (info) {
-            instResult.code = sandbox.Constants.JALANGI_VAR + ".ast_info = " + JSON.stringify(info) + ";\n" + instResult.code;
-        }
+function applyASTHandler(instCodeAndData, astHandler, sandbox, metadata) {
+    if (astHandler && instCodeAndData.instAST) {
+        astHandler(instCodeAndData.instAST, instCodeAndData, metadata);
     }
-    return instResult.code;
 }
 
 function headerCodeInit(root) {
