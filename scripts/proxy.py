@@ -17,13 +17,16 @@ print('Current working directory is ' + WORKING_DIR)
 jalangiArgs = ''
 useCache = True
 
-def processFile (url, name, content, ext):
+def processFile (flow, content, ext):
     try:
+        url = flow.request.scheme + '://' + flow.request.host + ':' + str(flow.request.port) + flow.request.path
+        name = os.path.splitext(flow.request.path_components[-1])[0] if len(flow.request.path_components) else 'index'
+
         hash = hashlib.md5(content).hexdigest()
-        fileName = 'cache/' + hash + '/' + name + '.' + ext
-        instrumentedFileName = 'cache/' + hash + '/' + name + '_jalangi_.' + ext
-        if not os.path.exists('cache/' + hash):
-            os.makedirs('cache/' + hash)
+        fileName = 'cache/' + flow.request.host + '/' + hash + '/' + name + '.' + ext
+        instrumentedFileName = 'cache/' + flow.request.host + '/' + hash + '/' + name + '_jalangi_.' + ext
+        if not os.path.exists('cache/' + flow.request.host + '/' + hash):
+            os.makedirs('cache/' + flow.request.host + '/' + hash)
         if not useCache or not os.path.isfile(instrumentedFileName):
             print('Instrumenting: ' + fileName + ' from ' + url)
             with open(fileName, 'w') as file:
@@ -55,18 +58,8 @@ def start(context, argv):
     jalangiArgs = ' '.join(map(mapper, [x for x in argv[1:]]))
 
 def response(context, flow):
-
-    def response(context, flow):
-        flow.response.decode()
-        if 'javascript' in content_type(flow.response.headers):
-            flow.response.content = processFile(flow.response.content, "js")
-        elif 'html' in content_type(flow.response.headers):
-            flow.response.content = processFile(flow.response.content, "html")
-
     try:
         flow.response.decode()
-        url = flow.request.scheme + '://' + flow.request.host + ':' + str(flow.request.port) + flow.request.path
-        name = os.path.splitext(flow.request.path_components[-1])[0] if len(flow.request.path_components) else 'index'
 
         content_type = None
         for key in flow.response.headers.keys():
@@ -75,9 +68,9 @@ def response(context, flow):
 
         if content_type:
             if content_type.find('javascript') >= 0:
-                flow.response.content = processFile(url, name, flow.response.content, 'js')
+                flow.response.content = processFile(flow, flow.response.content, 'js')
             if content_type.find('html') >= 0:
-                flow.response.content = processFile(url, name, flow.response.content, 'html')
+                flow.response.content = processFile(flow, flow.response.content, 'html')
     except:
         print('Exception in response() @ proxy.py')
         exc_type, exc_value, exc_traceback = sys.exc_info()
