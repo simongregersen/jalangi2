@@ -49,6 +49,8 @@ def start(context, argv):
         print('Cache disabled.')
         useCache = False
         argv.remove('--no-cache')
+    else:
+        argv.remove('--cache')
     def mapper(p): return p if p.startswith('--') else os.path.abspath(os.path.join(WORKING_DIR, p))
     jalangiArgs = ' '.join(map(mapper, [x for x in argv[1:]]))
 
