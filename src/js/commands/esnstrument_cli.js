@@ -263,6 +263,15 @@ if (typeof J$ === 'undefined') {
                                     Array.prototype.push.apply(node.childNodes, fragment.childNodes);
                                 }
                                 break;
+
+                            case 'script':
+                                var attrs = node.attrs || [];
+                                for (var i = attrs.length-1; i >= 0; --i) {
+                                    if (attrs[i].name.toLowerCase() === 'integrity') {
+                                        attrs.splice(i, 1);
+                                    }
+                                }
+                                break;
                         }
                     },
                     locationInfo: nodeVisitor.locationInfo
