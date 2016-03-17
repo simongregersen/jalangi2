@@ -16,6 +16,7 @@ print('Current working directory is ' + WORKING_DIR)
 
 jalangiArgs = ''
 useCache = True
+ignore = []
 
 def processFile (flow, content, ext):
     try:
@@ -54,10 +55,22 @@ def start(context, argv):
         argv.remove('--no-cache')
     else:
         argv.remove('--cache')
-    def mapper(p): return p if p.startswith('--') else os.path.abspath(os.path.join(WORKING_DIR, p))
+    ignoreIdx = argv.index('--ignore') if '--ignore' in argv else -1
+    while ignoreIdx >= 0:
+        argv.pop(ignoreIdx)
+        ignore.append(argv[ignoreIdx])
+        argv.pop(ignoreIdx)
+        ignoreIdx = argv.index('--ignore') if '--ignore' in argv else -1
+    def mapper(p):
+        path = os.path.abspath(os.path.join(WORKING_DIR, p))
+        return path if not p.startswith('--') and (os.path.isfile(path) or os.path.isdir(path)) else p
     jalangiArgs = ' '.join(map(mapper, [x for x in argv[1:]]))
 
 def response(context, flow):
+    for path in ignore:
+        if flow.request.url.startswith(path):
+            return
+
     try:
         flow.response.decode()
 
