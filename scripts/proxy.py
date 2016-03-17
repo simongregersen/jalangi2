@@ -75,15 +75,21 @@ def response(context, flow):
         flow.response.decode()
 
         content_type = None
+        csp_key = None
         for key in flow.response.headers.keys():
             if key.lower() == "content-type":
                 content_type = flow.response.headers[key].lower()
+            elif key.lower() == "content-security-policy":
+                csp_key = key
 
         if content_type:
             if content_type.find('javascript') >= 0:
                 flow.response.content = processFile(flow, flow.response.content, 'js')
             if content_type.find('html') >= 0:
                 flow.response.content = processFile(flow, flow.response.content, 'html')
+
+        if csp_key:
+            flow.response.headers.pop(csp_key, None)
     except:
         print('Exception in response() @ proxy.py')
         exc_type, exc_value, exc_traceback = sys.exc_info()
