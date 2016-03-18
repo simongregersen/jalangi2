@@ -31,7 +31,7 @@
     "url": "https://github.com/Samsung/jalangi2.git"
   },
   "devDependencies": {
-    "mocha": "2.1.0"
+    "mocha": "^2.4.5"
   },
   "main": "src/js/utils/api.js"
 }
