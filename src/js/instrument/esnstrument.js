@@ -1934,7 +1934,18 @@ if (typeof J$ === 'undefined') {
         }
 
         var newAst;
-        var instrument = !skip && typeof code === 'string' && code.indexOf(noInstr) < 0;
+        var instrument = !skip && typeof code === 'string';
+        if (instrument && code.indexOf(noInstr) >= 0) {
+            // "JALANGI DO NOT INSTRUMENT" could be in a JavaScript string literal, it must be a comment
+            instrument = true;
+            newAst = acorn.parse(code, {
+                onComment: function (block, text, start, end) {
+                    if (text.trim() === noInstr) {
+                        instrument = false;
+                    }
+                }
+            });
+        }
         if (instrument) {
             code = removeShebang(code);
             iidSourceInfo = {};
@@ -1946,9 +1957,8 @@ if (typeof J$ === 'undefined') {
             // post-process AST to hoist function declarations (required for Firefox)
             var hoistedFcts = [];
             newAst = hoistFunctionDeclaration(newAst, hoistedFcts);
-        } else {
-            // Such that newAst is not undefined
-            newAst = acorn.parse('undefined');
+        } else if (!newAst) {
+            newAst = acorn.parse(code);
         }
 
         var tmp = {};

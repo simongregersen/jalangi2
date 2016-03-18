@@ -90,7 +90,16 @@ if (typeof J$ === 'undefined') {
                 var sourceInfoExtension = null;
                 if (metadata && metadata.node && metadata.node.__location) {
                     var location = metadata.node.__location;
-                    sourceInfoExtension = { location: { line: location.line, col: location.col } };
+                    sourceInfoExtension = {
+                        location: {
+                            line: location.line,
+                            col: location.col,
+                            startTag: {
+                                startOffset: location.startTag.startOffset,
+                                endOffset: location.startTag.endOffset
+                            }
+                        }
+                    };
                 }
                 instCodeAndData = instrumentCode(
                     {
