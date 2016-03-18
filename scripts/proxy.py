@@ -4,6 +4,8 @@ import sys
 import inspect
 import traceback
 
+from libmproxy.script import concurrent
+
 filename = inspect.getframeinfo(inspect.currentframe()).filename
 JALANGI_HOME = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(filename)), os.pardir))
 WORKING_DIR = os.getcwd()
@@ -46,30 +48,44 @@ def processFile (flow, content, ext):
         print(''.join(lines))
         return content
 
+# Example usage: "proxy.py --no-cache --ignore http://cdn.com/jalangi --inlineIID --inlineSource --noResultsGUI --analysis ..."
 def start(context, argv):
     global jalangiArgs
     global useCache
+
+    # For enabling/disabling instrumentation cache (enabled by default)
     if '--no-cache' in argv:
         print('Cache disabled.')
         useCache = False
         argv.remove('--no-cache')
-    else:
+    elif '--cache' in argv:
         argv.remove('--cache')
+
+    # For not invoking jalangi for certain URLs
     ignoreIdx = argv.index('--ignore') if '--ignore' in argv else -1
     while ignoreIdx >= 0:
         argv.pop(ignoreIdx)
         ignore.append(argv[ignoreIdx])
         argv.pop(ignoreIdx)
         ignoreIdx = argv.index('--ignore') if '--ignore' in argv else -1
+
+    # The remaining arguments are passed to jalangi
     def mapper(p):
         path = os.path.abspath(os.path.join(WORKING_DIR, p))
         return path if not p.startswith('--') and (os.path.isfile(path) or os.path.isdir(path)) else p
     jalangiArgs = ' '.join(map(mapper, [x for x in argv[1:]]))
 
+@concurrent
 def response(context, flow):
+    # Do not invoke jalangi if the domain is ignored
     for path in ignore:
         if flow.request.url.startswith(path):
             return
+
+    # Do not invoke jalangi if the requested URL contains the query parameter noInstr
+    # (e.g. https://cdn.com/jalangi/jalangi.min.js?noInstr=true)
+    if flow.request.query and flow.request.query['noInstr']:
+        return
 
     try:
         flow.response.decode()
@@ -88,6 +104,7 @@ def response(context, flow):
             if content_type.find('html') >= 0:
                 flow.response.content = processFile(flow, flow.response.content, 'html')
 
+        # Disable the content security policy since it may prevent jalangi from executing
         if csp_key:
             flow.response.headers.pop(csp_key, None)
     except:
