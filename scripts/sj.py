@@ -80,7 +80,7 @@ def execute(script, env=None):
             for key in env.keys():
                 sub_env[key] = env[key]
         print(' '.join(cmd))
-        print(subprocess.check_output(cmd, env=sub_env))
+        print(subprocess.check_output(cmd, env=sub_env, stderr=subprocess.STDOUT))
     except subprocess.CalledProcessError, e:
         print(e.output)
 

@@ -1799,6 +1799,9 @@ if (typeof J$ === 'undefined') {
 
     // START of Liang Gong's AST post-processor
     function hoistFunctionDeclaration(ast, hoisteredFunctions) {
+        if (!hoisteredFunctions) {
+            hoisteredFunctions = [];
+        }
         var key, child, startIndex = 0;
         if (ast.body) {
             var newBody = [];
@@ -1851,17 +1854,15 @@ if (typeof J$ === 'undefined') {
 
             }
         }
-
-        return ast;
     }
 
     // END of Liang Gong's AST post-processor
 
-    function transformString(code, visitorsPost, visitorsPre) {
+    function transformString(newAst, visitorsPost, visitorsPre) {
 //         StatCollector.resumeTimer("parse");
 //        console.time("parse")
 //        var newAst = esprima.parse(code, {loc:true, range:true});
-        var newAst = acorn.parse(code, {locations: true, ecmaVersion: 6 });
+//        var newAst = acorn.parse(code, { locations: true, ecmaVersion: 6 });
 //        console.timeEnd("parse")
 //        StatCollector.suspendTimer("parse");
 //        StatCollector.resumeTimer("transform");
@@ -1874,7 +1875,7 @@ if (typeof J$ === 'undefined') {
 //        console.timeEnd("transform")
 //        StatCollector.suspendTimer("transform");
 //        console.log(JSON.stringify(newAst,null,"  "));
-        return newAst;
+//        return newAst;
     }
 
     // if this string is discovered inside code passed to instrumentCode(),
@@ -1917,13 +1918,12 @@ if (typeof J$ === 'undefined') {
     function instrumentCode(options) {
         var aret, skip = false;
         var isEval = options.isEval,
-            code = options.code, thisIid = options.thisIid, inlineSource = options.inlineSource, url = options.url;
+            code = removeShebang(options.code), thisIid = options.thisIid, inlineSource = options.inlineSource, url = options.url;
 
         iidSourceInfo = {};
         initializeIIDCounters(isEval);
         instCodeFileName = options.instCodeFileName ? options.instCodeFileName : (options.isDirect ? "eval" : "evalIndirect");
         origCodeFileName = options.origCodeFileName ? options.origCodeFileName : (options.isDirect ? "eval" : "evalIndirect");
-
 
         if (sandbox.analysis && sandbox.analysis.instrumentCodePre) {
             aret = sandbox.analysis.instrumentCodePre(thisIid, code, options.isDirect);
@@ -1933,32 +1933,27 @@ if (typeof J$ === 'undefined') {
             }
         }
 
-        var newAst;
         var instrument = !skip && typeof code === 'string';
-        if (instrument && code.indexOf(noInstr) >= 0) {
-            // "JALANGI DO NOT INSTRUMENT" could be in a JavaScript string literal, it must be a comment
-            instrument = true;
-            newAst = acorn.parse(code, {
-                onComment: function (block, text, start, end) {
-                    if (text.trim() === noInstr) {
-                        instrument = false;
-                    }
+        var newAst = acorn.parse(code, {
+            allowReturnOutsideFunction: options.isExpression,
+            ecmaVersion: 6,
+            locations: true,
+            onComment: function (block, text, start, end) {
+                // "JALANGI DO NOT INSTRUMENT" could be in a JavaScript string literal, it must be a comment
+                if (text.trim() === noInstr) {
+                    instrument = false;
                 }
-            });
-        }
+            }
+        });
         if (instrument) {
-            code = removeShebang(code);
             iidSourceInfo = {};
             if (Config.ENABLE_SAMPLING) {
-                newAst = transformString(code, [visitorCloneBodyPre, visitorRRPost, visitorOps, visitorMergeBodyPre], [undefined, visitorRRPre, undefined, undefined]);
+                transformString(newAst, [visitorCloneBodyPre, visitorRRPost, visitorOps, visitorMergeBodyPre], [undefined, visitorRRPre, undefined, undefined]);
             } else {
-                newAst = transformString(code, [visitorRRPost, visitorOps], [visitorRRPre, undefined]);
+                transformString(newAst, [visitorRRPost, visitorOps], [visitorRRPre, undefined]);
             }
             // post-process AST to hoist function declarations (required for Firefox)
-            var hoistedFcts = [];
-            newAst = hoistFunctionDeclaration(newAst, hoistedFcts);
-        } else if (!newAst) {
-            newAst = acorn.parse(code);
+            hoistFunctionDeclaration(newAst);
         }
 
         var tmp = {};

@@ -94,10 +94,12 @@ if (typeof J$ === 'undefined') {
                         location: {
                             line: location.line,
                             col: location.col,
-                            startTag: {
+                            startTag: location.startTag ? {
                                 startOffset: location.startTag.startOffset,
                                 endOffset: location.startTag.endOffset
-                            }
+                            } : null,
+                            startOffset: location.startOffset,
+                            endOffset: location.endOffset
                         }
                     };
                 }
@@ -108,6 +110,7 @@ if (typeof J$ === 'undefined') {
                         },
                         code: src,
                         isEval: false,
+                        isExpression: metadata.type === 'event-handler' || metadata.type === 'javascript-url',
                         origCodeFileName: sanitizePath(origname),
                         instCodeFileName: sanitizePath(instname),
                         inlineSourceMap: inlineIID,
@@ -224,6 +227,7 @@ if (typeof J$ === 'undefined') {
                         },
                         code: origCode,
                         isEval: false,
+                        isExpression: false,
                         origCodeFileName: sanitizePath(fileName),
                         instCodeFileName: sanitizePath(instFileName),
                         inlineSourceMap: inlineIID,
