@@ -252,7 +252,7 @@ if (typeof J$ === 'undefined') {
 
             try {
                 var jalangiRoot = getJalangiRoot();
-                var options = {
+                var rewriteOptions = {
                     onNodeVisited: function (node) {
                         var newNode;
 
@@ -289,7 +289,8 @@ if (typeof J$ === 'undefined') {
                     locationInfo: htmlVisitor.locationInfo
                 };
 
-                instCode = proxy.rewriteHTML(origCode, "http://foo.com", inlineRewriter, null, null, options);
+                var rewriteUrl = process.env.JALANGI_URL || "http://foo.com"; // JALANGI_URL is set by the rewriting-proxy
+                instCode = proxy.rewriteHTML(origCode, rewriteUrl, inlineRewriter, null, null, rewriteOptions);
                 fs.writeFileSync(instFileName, instCode, "utf8");
             } catch (e) {
                 console.error('Failure during HTML instrumentation:', e.message + ' (' + e.name + ').');
