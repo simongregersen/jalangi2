@@ -212,7 +212,6 @@ if (typeof J$ === 'undefined') {
 
         var inlineRewriter = rewriteInlineScript(astHandler);
         if (fileName.endsWith(".js")) {
-<<<<<<< HEAD
             var metadata = {
                 type: 'script',
                 inline: false,
@@ -297,71 +296,6 @@ if (typeof J$ === 'undefined') {
                 console.error('Source:', origCode);
                 throw e;
             }
-=======
-            instCodeAndData = instrumentCode(
-                {
-                    code: origCode,
-                    isEval: false,
-                    origCodeFileName: sanitizePath(fileName),
-                    instCodeFileName: sanitizePath(instFileName),
-                    inlineSourceMap: inlineIID,
-                    inlineSource: inlineSource,
-                    url: url
-                });
-            instUtil.applyASTHandler(instCodeAndData, astHandler, sandbox);
-            fs.writeFileSync(makeSMapFileName(instFileName), instCodeAndData.sourceMapString, "utf8");
-            fs.writeFileSync(instFileName, instCodeAndData.code, "utf8");
-        } else {
-            // HTML will never be instrumented online, so it is safe to use require here
-            var parse5 = require('parse5');
-
-            try {
-                var jalangiRoot = getJalangiRoot();
-                var rewriteOptions = {
-                    onNodeVisited: function (node) {
-                        var newNode;
-
-                        if (htmlVisitor.visitor) {
-                            htmlVisitor.visitor(node);
-                        }
-
-                        switch (node.tagName) {
-                            case 'head':
-                                var fragment = parse5.parseFragment(
-                                    '<meta http-equiv="Content-Type" content="text/html; charset=utf-8">' +
-                                    instUtil.getInlinedScripts(analyses, initParams, extraAppScripts, EXTRA_SCRIPTS_DIR, jalangiRoot, cdn)
-                                );
-                                Array.prototype.unshift.apply(node.childNodes, fragment.childNodes);
-                                break;
-
-                            case 'body':
-                                if (!args.noResultsGUI) {
-                                    var fragment = parse5.parseFragment(instUtil.getFooterString(jalangiRoot));
-                                    Array.prototype.push.apply(node.childNodes, fragment.childNodes);
-                                }
-                                break;
-
-                            case 'script':
-                                var attrs = node.attrs || [];
-                                for (var i = attrs.length-1; i >= 0; --i) {
-                                    if (attrs[i].name.toLowerCase() === 'integrity') {
-                                        attrs.splice(i, 1);
-                                    }
-                                }
-                                break;
-                        }
-                    },
-                    locationInfo: htmlVisitor.locationInfo
-                };
-                var rewriteUrl = process.env.JALANGI_URL || "http://foo.com"; // JALANGI_URL is set by the proxy
-                instCode = proxy.rewriteHTML(origCode, rewriteUrl, inlineRewriter, null, null, rewriteOptions);
-                fs.writeFileSync(instFileName, instCode, "utf8");
-            } catch (e) {
-                console.error('Failure during HTML instrumentation:', e.message + ' (' + e.name + ').');
-                console.error('Source:', origCode);
-                throw e;
-            }
->>>>>>> jalangi2/master
         }
     }
 
