@@ -118,8 +118,8 @@ function getFooterString(jalangiRoot) {
 }
 
 function genInitParamsCode(initParams) {
-    var initParamsObj = {};
     if (initParams) {
+        var initParamsObj = {};
         initParams.forEach(function (keyVal) {
             var split = keyVal.split(':');
             if (split.length !== 2) {
@@ -127,18 +127,14 @@ function genInitParamsCode(initParams) {
             }
             initParamsObj[split[0]] = split[1];
         });
+        return "<script>J$.initParams = " + JSON.stringify(initParamsObj) + ";</script>";
     }
-    return "<script>J$.initParams = " + JSON.stringify(initParamsObj) + ";</script>";
 }
 
-function applyASTHandler(instResult, astHandler, sandbox) {
-    if (astHandler && instResult.instAST) {
-        var info = astHandler(instResult.instAST);
-        if (info) {
-            instResult.code = sandbox.Constants.JALANGI_VAR + ".ast_info = " + JSON.stringify(info) + ";\n" + instResult.code;
-        }
+function applyASTHandler(instCodeAndData, astHandler, sandbox, metadata) {
+    if (astHandler && instCodeAndData.instAST) {
+        astHandler(instCodeAndData.instAST, instCodeAndData, metadata);
     }
-    return instResult.code;
 }
 
 function headerCodeInit(root) {
