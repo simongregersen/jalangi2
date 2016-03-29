@@ -1858,7 +1858,7 @@ if (typeof J$ === 'undefined') {
 
     // END of Liang Gong's AST post-processor
 
-    function transformString(newAst, visitorsPost, visitorsPre) {
+    function transformAst(newAst, visitorsPost, visitorsPre) {
 //         StatCollector.resumeTimer("parse");
 //        console.time("parse")
 //        var newAst = esprima.parse(code, {loc:true, range:true});
@@ -1875,12 +1875,12 @@ if (typeof J$ === 'undefined') {
 //        console.timeEnd("transform")
 //        StatCollector.suspendTimer("transform");
 //        console.log(JSON.stringify(newAst,null,"  "));
-//        return newAst;
+        return newAst;
     }
 
     // if this string is discovered inside code passed to instrumentCode(),
     // the code will not be instrumented
-    var noInstr = "// JALANGI DO NOT INSTRUMENT";
+    var noInstr = "JALANGI DO NOT INSTRUMENT";
 
     function initializeIIDCounters(forEval) {
         var adj = forEval ? IID_INC_STEP / 2 : 0;
@@ -1911,7 +1911,7 @@ if (typeof J$ === 'undefined') {
     /**
      * Instruments the provided code.
      *
-     * @param {{applyASTHandler: function, isEval: boolean, code: string, thisIid: int, origCodeFileName: string, instCodeFileName: string, inlineSourceMap: boolean, inlineSource: boolean, url: string, isDirect: boolean }} options
+     * @param {{allowReturnOutsideFunction: boolean, applyASTHandler: function, isEval: boolean, code: string, thisIid: int, origCodeFileName: string, instCodeFileName: string, inlineSourceMap: boolean, inlineSource: boolean, url: string, isDirect: boolean }} options
      * @return {{code:string, instAST: object, sourceMapObject: object, sourceMapString: string}}
      *
      */
@@ -1935,7 +1935,7 @@ if (typeof J$ === 'undefined') {
 
         var instrument = !skip && typeof code === 'string';
         var newAst = acorn.parse(code, {
-            allowReturnOutsideFunction: options.isExpression,
+            allowReturnOutsideFunction: options.allowReturnOutsideFunction,
             ecmaVersion: 6,
             locations: true,
             onComment: function (block, text, start, end) {
@@ -1948,9 +1948,9 @@ if (typeof J$ === 'undefined') {
         if (instrument) {
             iidSourceInfo = {};
             if (Config.ENABLE_SAMPLING) {
-                transformString(newAst, [visitorCloneBodyPre, visitorRRPost, visitorOps, visitorMergeBodyPre], [undefined, visitorRRPre, undefined, undefined]);
+                newAst = transformAst(newAst, [visitorCloneBodyPre, visitorRRPost, visitorOps, visitorMergeBodyPre], [undefined, visitorRRPre, undefined, undefined]);
             } else {
-                transformString(newAst, [visitorRRPost, visitorOps], [visitorRRPre, undefined]);
+                newAst = transformAst(newAst, [visitorRRPost, visitorOps], [visitorRRPre, undefined]);
             }
             // post-process AST to hoist function declarations (required for Firefox)
             hoistFunctionDeclaration(newAst);
@@ -2004,7 +2004,7 @@ if (typeof J$ === 'undefined') {
         }
         result.code = esotope.generate(newAst, {comment: true, format: esotope.FORMAT_MINIFY});
         if (instrument) {
-            result.code += "\n" + noInstr + "\n";
+            result.code += "\n//" + noInstr + "\n";
         }
         return result;
     }

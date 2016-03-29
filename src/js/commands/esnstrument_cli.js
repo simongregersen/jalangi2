@@ -86,7 +86,7 @@ if (typeof J$ === 'undefined') {
             try {
                 // If the rewriting-proxy module provides location info for the inline script,
                 // then include it at runtime (by default disabled, but can be enabled by the
-                // nodeVisitorModule, by setting exports.locationInfo = true).
+                // htmlVisitorModule, by setting exports.locationInfo = true).
                 var sourceInfoExtension = null;
                 if (metadata && metadata.node && metadata.node.__location) {
                     var location = metadata.node.__location;
@@ -110,7 +110,7 @@ if (typeof J$ === 'undefined') {
                         },
                         code: src,
                         isEval: false,
-                        isExpression: metadata.type === 'event-handler' || metadata.type === 'javascript-url',
+                        allowReturnOutsideFunction: metadata.type === 'event-handler' || metadata.type === 'javascript-url',
                         origCodeFileName: sanitizePath(origname),
                         instCodeFileName: sanitizePath(instname),
                         inlineSourceMap: inlineIID,
@@ -147,7 +147,7 @@ if (typeof J$ === 'undefined') {
         parser.addArgument(['--noResultsGUI'], { help: "disable insertion of results GUI code in HTML", action:'storeTrue'});
         parser.addArgument(['--cdn'], {help: "CDN URL from which to serve analysis (rather than inlining)"});
         parser.addArgument(['--astHandlerModule'], {help: "Path to a node module that exports a function to be used for additional AST handling after instrumentation"});
-        parser.addArgument(['--nodeVisitorModule'], {help: "Path to a node module that exports a function to be used for additional HTML node handling after instrumentation"});
+        parser.addArgument(['--htmlVisitorModule'], {help: "Path to a node module that exports a function to be used for HTML handling before instrumentation"});
         parser.addArgument(['--outDir'], {
             help: "Directory containing scripts inlined in html",
             defaultValue: process.cwd()
@@ -183,11 +183,10 @@ if (typeof J$ === 'undefined') {
         if (args.astHandlerModule) {
             astHandler = require(args.astHandlerModule);
         }
-        var nodeVisitor = {};
-        if (args.nodeVisitorModule) {
-            nodeVisitor = require(args.nodeVisitorModule);
+        var htmlVisitor = {};
+        if (args.htmlVisitorModule) {
+            htmlVisitor = require(args.htmlVisitorModule);
         }
-
         var initParams = args.initParam;
         inlineIID = args.inlineIID;
         inlineSource = args.inlineSource;
@@ -213,6 +212,7 @@ if (typeof J$ === 'undefined') {
 
         var inlineRewriter = rewriteInlineScript(astHandler);
         if (fileName.endsWith(".js")) {
+<<<<<<< HEAD
             var metadata = {
                 type: 'script',
                 inline: false,
@@ -227,7 +227,7 @@ if (typeof J$ === 'undefined') {
                         },
                         code: origCode,
                         isEval: false,
-                        isExpression: false,
+                        allowReturnOutsideFunction: false,
                         origCodeFileName: sanitizePath(fileName),
                         instCodeFileName: sanitizePath(instFileName),
                         inlineSourceMap: inlineIID,
@@ -248,7 +248,7 @@ if (typeof J$ === 'undefined') {
                 }
             }
         } else {
-            // HTML will never be instrumented online, so it is safe to use require here!
+            // HTML will never be instrumented online, so it is safe to use require here
             var parse5 = require('parse5');
 
             try {
@@ -257,8 +257,8 @@ if (typeof J$ === 'undefined') {
                     onNodeVisited: function (node) {
                         var newNode;
 
-                        if (nodeVisitor.visitor) {
-                            nodeVisitor.visitor(node);
+                        if (htmlVisitor.visitor) {
+                            htmlVisitor.visitor(node);
                         }
 
                         switch (node.tagName) {
@@ -287,7 +287,7 @@ if (typeof J$ === 'undefined') {
                                 break;
                         }
                     },
-                    locationInfo: nodeVisitor.locationInfo
+                    locationInfo: htmlVisitor.locationInfo
                 };
 
                 instCode = proxy.rewriteHTML(origCode, "http://foo.com", inlineRewriter, null, null, options);
@@ -297,6 +297,71 @@ if (typeof J$ === 'undefined') {
                 console.error('Source:', origCode);
                 throw e;
             }
+=======
+            instCodeAndData = instrumentCode(
+                {
+                    code: origCode,
+                    isEval: false,
+                    origCodeFileName: sanitizePath(fileName),
+                    instCodeFileName: sanitizePath(instFileName),
+                    inlineSourceMap: inlineIID,
+                    inlineSource: inlineSource,
+                    url: url
+                });
+            instUtil.applyASTHandler(instCodeAndData, astHandler, sandbox);
+            fs.writeFileSync(makeSMapFileName(instFileName), instCodeAndData.sourceMapString, "utf8");
+            fs.writeFileSync(instFileName, instCodeAndData.code, "utf8");
+        } else {
+            // HTML will never be instrumented online, so it is safe to use require here
+            var parse5 = require('parse5');
+
+            try {
+                var jalangiRoot = getJalangiRoot();
+                var rewriteOptions = {
+                    onNodeVisited: function (node) {
+                        var newNode;
+
+                        if (htmlVisitor.visitor) {
+                            htmlVisitor.visitor(node);
+                        }
+
+                        switch (node.tagName) {
+                            case 'head':
+                                var fragment = parse5.parseFragment(
+                                    '<meta http-equiv="Content-Type" content="text/html; charset=utf-8">' +
+                                    instUtil.getInlinedScripts(analyses, initParams, extraAppScripts, EXTRA_SCRIPTS_DIR, jalangiRoot, cdn)
+                                );
+                                Array.prototype.unshift.apply(node.childNodes, fragment.childNodes);
+                                break;
+
+                            case 'body':
+                                if (!args.noResultsGUI) {
+                                    var fragment = parse5.parseFragment(instUtil.getFooterString(jalangiRoot));
+                                    Array.prototype.push.apply(node.childNodes, fragment.childNodes);
+                                }
+                                break;
+
+                            case 'script':
+                                var attrs = node.attrs || [];
+                                for (var i = attrs.length-1; i >= 0; --i) {
+                                    if (attrs[i].name.toLowerCase() === 'integrity') {
+                                        attrs.splice(i, 1);
+                                    }
+                                }
+                                break;
+                        }
+                    },
+                    locationInfo: htmlVisitor.locationInfo
+                };
+                var rewriteUrl = process.env.JALANGI_URL || "http://foo.com"; // JALANGI_URL is set by the proxy
+                instCode = proxy.rewriteHTML(origCode, rewriteUrl, inlineRewriter, null, null, rewriteOptions);
+                fs.writeFileSync(instFileName, instCode, "utf8");
+            } catch (e) {
+                console.error('Failure during HTML instrumentation:', e.message + ' (' + e.name + ').');
+                console.error('Source:', origCode);
+                throw e;
+            }
+>>>>>>> jalangi2/master
         }
     }
 
