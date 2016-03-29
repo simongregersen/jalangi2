@@ -289,7 +289,7 @@ if (typeof J$ === 'undefined') {
                     locationInfo: htmlVisitor.locationInfo
                 };
 
-                var rewriteUrl = process.env.JALANGI_URL || "http://foo.com"; // JALANGI_URL is set by the rewriting-proxy
+                var rewriteUrl = process.env.JALANGI_URL || "http://foo.com"; // JALANGI_URL is set by the proxy
                 instCode = proxy.rewriteHTML(origCode, rewriteUrl, inlineRewriter, null, null, rewriteOptions);
                 fs.writeFileSync(instFileName, instCode, "utf8");
             } catch (e) {

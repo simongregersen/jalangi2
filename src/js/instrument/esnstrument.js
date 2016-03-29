@@ -1922,8 +1922,8 @@ if (typeof J$ === 'undefined') {
 
         iidSourceInfo = {};
         initializeIIDCounters(isEval);
-        instCodeFileName = options.instCodeFileName ? options.instCodeFileName : (options.isDirect ? "eval" : "evalIndirect");
-        origCodeFileName = options.origCodeFileName ? options.origCodeFileName : (options.isDirect ? "eval" : "evalIndirect");
+        instCodeFileName = options.instCodeFileName ? options.instCodeFileName : (options.isDirect?"eval":"evalIndirect");
+        origCodeFileName = options.origCodeFileName ? options.origCodeFileName : (options.isDirect?"eval":"evalIndirect");
 
         if (sandbox.analysis && sandbox.analysis.instrumentCodePre) {
             aret = sandbox.analysis.instrumentCodePre(thisIid, code, options.isDirect);

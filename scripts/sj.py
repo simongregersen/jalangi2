@@ -112,4 +112,3 @@ def cd_parent():
 
 def full_path(file):
     return os.path.abspath(file)
-    
