@@ -81,7 +81,7 @@ def execute_return_np(script, **kwargs):
              f.seek(0)
              return f.read()
 
-def execute(script, stdin=None, env=None):
+def execute(script, stdin=None, env=None, quiet=False):
     """Execute script and print output"""
     try:
         cmd = [find_node()] + script.split()
@@ -92,9 +92,9 @@ def execute(script, stdin=None, env=None):
         print(' '.join(cmd))
         p = Popen(cmd, env=sub_env, stdin=PIPE, stdout=PIPE, stderr=subprocess.STDOUT)
         stdout = p.communicate(input=encode_input(stdin) if stdin else None)[0]
-        result = stdout.decode()
-        print(result)
-        return result
+        if not quiet:
+            print(stdout)
+        return stdout
     except subprocess.CalledProcessError, e:
         print(e.output)
 
