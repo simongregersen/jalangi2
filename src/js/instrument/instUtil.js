@@ -133,7 +133,7 @@ function genInitParamsCode(initParams) {
 
 function applyASTHandler(instCodeAndData, astHandler, sandbox, metadata) {
     if (astHandler && instCodeAndData.instAST) {
-        astHandler(instCodeAndData.instAST, instCodeAndData, metadata);
+        return astHandler(instCodeAndData.instAST, instCodeAndData, metadata);
     }
 }
 
