@@ -106,7 +106,7 @@ if (typeof J$ === 'undefined') {
                 instCodeAndData = instrumentCode(
                     {
                         applyASTHandler: function (instCodeAndData) {
-                            instUtil.applyASTHandler(instCodeAndData, astHandler, sandbox, metadata);
+                            return instUtil.applyASTHandler(instCodeAndData, astHandler, sandbox, metadata);
                         },
                         code: src,
                         isEval: false,
@@ -222,7 +222,7 @@ if (typeof J$ === 'undefined') {
                 instCodeAndData = instrumentCode(
                     {
                         applyASTHandler: function (instCodeAndData) {
-                            instUtil.applyASTHandler(instCodeAndData, astHandler, sandbox, metadata);
+                            return instUtil.applyASTHandler(instCodeAndData, astHandler, sandbox, metadata);
                         },
                         code: origCode,
                         isEval: false,

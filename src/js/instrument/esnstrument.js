@@ -2000,9 +2000,11 @@ if (typeof J$ === 'undefined') {
 
         var result = {instAST: newAst, sourceMapObject: iidSourceInfo, sourceMapString: prepend};
         if (options.applyASTHandler) {
-            options.applyASTHandler(result);
+            result.code = options.applyASTHandler(result);
         }
-        result.code = esotope.generate(newAst, {comment: true, format: esotope.FORMAT_MINIFY});
+        if (!result.code) {
+            result.code = esotope.generate(newAst, {comment: true, format: esotope.FORMAT_MINIFY});
+        }
         if (instrument) {
             result.code += "\n//" + noInstr + "\n";
         }
