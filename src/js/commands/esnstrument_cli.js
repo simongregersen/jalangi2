@@ -75,7 +75,7 @@ if (typeof J$ === 'undefined') {
 
 
 
-    function rewriteInlineScript(astHandler) {
+    function rewriteInlineScript(astHandler, htmlVisitor) {
         return function (src, metadata) {
             //var instname = instUtil.createFilenameForScript(metadata.url);
             //var origname = createOrigScriptFilename(instname);
@@ -88,20 +88,27 @@ if (typeof J$ === 'undefined') {
                 // then include it at runtime (by default disabled, but can be enabled by the
                 // htmlVisitorModule, by setting exports.locationInfo = true).
                 var sourceInfoExtension = null;
-                if (metadata && metadata.node && metadata.node.__location) {
-                    var location = metadata.node.__location;
-                    sourceInfoExtension = {
-                        location: {
-                            line: location.line,
-                            col: location.col,
-                            startTag: location.startTag ? {
-                                startOffset: location.startTag.startOffset,
-                                endOffset: location.startTag.endOffset
-                            } : null,
-                            startOffset: location.startOffset,
-                            endOffset: location.endOffset
-                        }
-                    };
+                if (metadata && metadata.node) {
+                    // TODO: Should be moved to rewriting-proxy
+                    if (htmlVisitor.preVisitor) {
+                        htmlVisitor.preVisitor(metadata.node);
+                    }
+
+                    if (metadata.node.__location) {
+                        var location = metadata.node.__location;
+                        sourceInfoExtension = {
+                            location: {
+                                line: location.line,
+                                col: location.col,
+                                startTag: location.startTag ? {
+                                    startOffset: location.startTag.startOffset,
+                                    endOffset: location.startTag.endOffset
+                                } : null,
+                                startOffset: location.startOffset,
+                                endOffset: location.endOffset
+                            }
+                        };
+                    }
                 }
                 instCodeAndData = instrumentCode(
                     {
@@ -210,7 +217,7 @@ if (typeof J$ === 'undefined') {
         var origCode = fs.readFileSync(fileName, "utf8");
         var instCodeAndData, instCode;
 
-        var inlineRewriter = rewriteInlineScript(astHandler);
+        var inlineRewriter = rewriteInlineScript(astHandler, htmlVisitor);
         if (fileName.endsWith(".js")) {
             var metadata = {
                 type: 'script',
