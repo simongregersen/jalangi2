@@ -88,27 +88,20 @@ if (typeof J$ === 'undefined') {
                 // then include it at runtime (by default disabled, but can be enabled by the
                 // htmlVisitorModule, by setting exports.locationInfo = true).
                 var sourceInfoExtension = null;
-                if (metadata && metadata.node) {
-                    // TODO: Should be moved to rewriting-proxy
-                    if (htmlVisitor.preVisitor) {
-                        htmlVisitor.preVisitor(metadata.node);
-                    }
-
-                    if (metadata.node.__location) {
-                        var location = metadata.node.__location;
-                        sourceInfoExtension = {
-                            location: {
-                                line: location.line,
-                                col: location.col,
-                                startTag: location.startTag ? {
-                                    startOffset: location.startTag.startOffset,
-                                    endOffset: location.startTag.endOffset
-                                } : null,
-                                startOffset: location.startOffset,
-                                endOffset: location.endOffset
-                            }
-                        };
-                    }
+                if (metadata && metadata.node && metadata.node.__location) {
+                    var location = metadata.node.__location;
+                    sourceInfoExtension = {
+                        location: {
+                            line: location.line,
+                            col: location.col,
+                            startTag: location.startTag ? {
+                                startOffset: location.startTag.startOffset,
+                                endOffset: location.startTag.endOffset
+                            } : null,
+                            startOffset: location.startOffset,
+                            endOffset: location.endOffset
+                        }
+                    };
                 }
                 instCodeAndData = instrumentCode(
                     {
@@ -260,6 +253,7 @@ if (typeof J$ === 'undefined') {
             try {
                 var jalangiRoot = getJalangiRoot();
                 var rewriteOptions = {
+                    onBeforeNodeVisited: htmlVisitor.preVisitor,
                     onNodeVisited: function (node) {
                         var newNode;
 
