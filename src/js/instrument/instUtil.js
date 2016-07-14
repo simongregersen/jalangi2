@@ -59,7 +59,6 @@ function getScriptOpenWithId(src) {
   return ret;
 }
 
-
 function getInlinedScripts(analyses, initParams, extraAppScripts, EXTRA_SCRIPTS_DIR, jalangiRoot, cdn) {
     if (!headerCode) {
         if (cdn) {

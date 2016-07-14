@@ -199,7 +199,8 @@ if (typeof J$ === 'undefined') {
         var aret, skip = false, result;
 
         if (sandbox.analysis && sandbox.analysis.invokeFunPre) {
-            aret = sandbox.analysis.invokeFunPre(iid, f, base, args, isConstructor, isMethod, f && f[SPECIAL_PROP_IID]);
+            aret = f ? sandbox.analysis.invokeFunPre(iid, f, base, args, isConstructor, isMethod, f[SPECIAL_PROP_IID], f[SPECIAL_PROP_SID])
+                     : sandbox.analysis.invokeFunPre(iid, f, base, args, isConstructor, isMethod);
             if (aret) {
                 f = aret.f;
                 base = aret.base;
@@ -211,7 +212,7 @@ if (typeof J$ === 'undefined') {
             result = callFun(f, base, args, isConstructor, iid);
         }
         if (sandbox.analysis && sandbox.analysis.invokeFun) {
-            aret = sandbox.analysis.invokeFun(iid, f, base, args, result, isConstructor, isMethod, f[SPECIAL_PROP_IID]);
+            aret = sandbox.analysis.invokeFun(iid, f, base, args, result, isConstructor, isMethod, f[SPECIAL_PROP_IID], f[SPECIAL_PROP_SID]);
             if (aret) {
                 result = aret.result;
             }
@@ -728,7 +729,7 @@ if (typeof J$ === 'undefined') {
 
     function S(iid, f) {
         if (sandbox.analysis && sandbox.analysis.runInstrumentedFunctionBody) {
-            return sandbox.analysis.runInstrumentedFunctionBody(iid, f, f[SPECIAL_PROP_IID]);
+            return sandbox.analysis.runInstrumentedFunctionBody(iid, f, f[SPECIAL_PROP_IID], f[SPECIAL_PROP_SID]);
         }
         return true;
     }

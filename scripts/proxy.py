@@ -1,3 +1,4 @@
+import codecs
 import hashlib
 import os
 import sys
