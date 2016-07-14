@@ -199,7 +199,8 @@ if (typeof J$ === 'undefined') {
         var aret, skip = false, result;
 
         if (sandbox.analysis && sandbox.analysis.invokeFunPre) {
-            aret = sandbox.analysis.invokeFunPre(iid, f, base, args, isConstructor, isMethod, f[SPECIAL_PROP_IID], f[SPECIAL_PROP_SID]);
+            aret = f ? sandbox.analysis.invokeFunPre(iid, f, base, args, isConstructor, isMethod, f[SPECIAL_PROP_IID], f[SPECIAL_PROP_SID])
+                     : sandbox.analysis.invokeFunPre(iid, f, base, args, isConstructor, isMethod);
             if (aret) {
                 f = aret.f;
                 base = aret.base;

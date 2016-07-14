@@ -75,7 +75,7 @@ if (typeof J$ === 'undefined') {
 
 
 
-    function rewriteInlineScript(astHandler) {
+    function rewriteInlineScript(astHandler, htmlVisitor) {
         return function (src, metadata) {
             //var instname = instUtil.createFilenameForScript(metadata.url);
             //var origname = createOrigScriptFilename(instname);
@@ -84,22 +84,46 @@ if (typeof J$ === 'undefined') {
             var instname = makeInstCodeFileName(origname), instCodeAndData;
 
             try {
+                // If the rewriting-proxy module provides location info for the inline script,
+                // then include it at runtime (by default disabled, but can be enabled by the
+                // htmlVisitorModule, by setting exports.locationInfo = true).
+                var sourceInfoExtension = null;
+                if (metadata && metadata.node && metadata.node.__location) {
+                    var location = metadata.node.__location;
+                    sourceInfoExtension = {
+                        location: {
+                            line: location.line,
+                            col: location.col,
+                            startTag: location.startTag ? {
+                                startOffset: location.startTag.startOffset,
+                                endOffset: location.startTag.endOffset
+                            } : null,
+                            startOffset: location.startOffset,
+                            endOffset: location.endOffset
+                        }
+                    };
+                }
                 instCodeAndData = instrumentCode(
                     {
+                        applyASTHandler: function (instCodeAndData) {
+                            return instUtil.applyASTHandler(instCodeAndData, astHandler, sandbox, metadata);
+                        },
                         code: src,
                         isEval: false,
+                        allowReturnOutsideFunction: metadata.type === 'event-handler' || metadata.type === 'javascript-url',
                         origCodeFileName: sanitizePath(origname),
                         instCodeFileName: sanitizePath(instname),
                         inlineSourceMap: inlineIID,
                         inlineSource: inlineSource,
+                        sourceInfoExtension: sourceInfoExtension,
                         url: url
                     });
-
             } catch (e) {
-                console.log(src);
+                console.error('Failure during inline script instrumentation:', e.message + ' (' + e.name + ').');
+                console.error('Source:', src);
+                console.error('Metadata:', metadata);
                 throw e;
             }
-            instUtil.applyASTHandler(instCodeAndData, astHandler, sandbox);
             fs.writeFileSync(path.join(outDir, origname), src, "utf8");
             fs.writeFileSync(makeSMapFileName(path.join(outDir, instname)), instCodeAndData.sourceMapString, "utf8");
             fs.writeFileSync(path.join(outDir, instname), instCodeAndData.code, "utf8");
@@ -186,21 +210,42 @@ if (typeof J$ === 'undefined') {
         var origCode = fs.readFileSync(fileName, "utf8");
         var instCodeAndData, instCode;
 
-        var inlineRewriter = rewriteInlineScript(astHandler);
+        var inlineRewriter = rewriteInlineScript(astHandler, htmlVisitor);
         if (fileName.endsWith(".js")) {
-            instCodeAndData = instrumentCode(
-                {
-                    code: origCode,
-                    isEval: false,
-                    origCodeFileName: sanitizePath(fileName),
-                    instCodeFileName: sanitizePath(instFileName),
-                    inlineSourceMap: inlineIID,
-                    inlineSource: inlineSource,
-                    url: url
-                });
-            instUtil.applyASTHandler(instCodeAndData, astHandler, sandbox);
-            fs.writeFileSync(makeSMapFileName(instFileName), instCodeAndData.sourceMapString, "utf8");
-            fs.writeFileSync(instFileName, instCodeAndData.code, "utf8");
+            var metadata = {
+                type: 'script',
+                inline: false,
+                url: fileName
+            };
+
+            try {
+                instCodeAndData = instrumentCode(
+                    {
+                        applyASTHandler: function (instCodeAndData) {
+                            return instUtil.applyASTHandler(instCodeAndData, astHandler, sandbox, metadata);
+                        },
+                        code: origCode,
+                        isEval: false,
+                        allowReturnOutsideFunction: false,
+                        origCodeFileName: sanitizePath(fileName),
+                        instCodeFileName: sanitizePath(instFileName),
+                        inlineSourceMap: inlineIID,
+                        inlineSource: inlineSource,
+                        url: url
+                    });
+                fs.writeFileSync(makeSMapFileName(instFileName), instCodeAndData.sourceMapString, "utf8");
+                fs.writeFileSync(instFileName, instCodeAndData.code, "utf8");
+            } catch (e) {
+                if (e.name === 'SyntaxError') {
+                    console.error('SyntaxError:', fileName);
+                    fs.writeFileSync(instFileName, origCode, "utf8");
+                } else {
+                    console.error('Failure during external script instrumentation:', e.message + ' (' + e.name + ').');
+                    console.error('Source:', origCode);
+                    console.error('Metadata:', metadata);
+                    throw e;
+                }
+            }
         } else {
             // HTML will never be instrumented online, so it is safe to use require here
             var parse5 = require('parse5');
@@ -208,6 +253,7 @@ if (typeof J$ === 'undefined') {
             try {
                 var jalangiRoot = getJalangiRoot();
                 var rewriteOptions = {
+                    onBeforeNodeVisited: htmlVisitor.preVisitor,
                     onNodeVisited: function (node) {
                         var newNode;
 
