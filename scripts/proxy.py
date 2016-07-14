@@ -9,9 +9,9 @@ from subprocess import CalledProcessError, Popen, PIPE, STDOUT
 
 p = Popen(['mitmdump --version'], stdout=PIPE, stdin=PIPE, stderr=STDOUT, shell=True)
 stdout = p.communicate()[0]
-mitmversion = stdout.decode()
+mitmversion = float(stdout.decode()[9:]) # remove "mitmdump "
 
-if mitmversion.endswith("0.17"):
+if mitmversion >= 0.17:
     from mitmproxy.script import concurrent
 else:
     from libmproxy.script import concurrent
