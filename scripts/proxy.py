@@ -58,8 +58,15 @@ def processFile (flow, content, ext):
         print(''.join(lines))
         return content
 
+if mitmversion >= 0.18:
+    def start():
+        _start(sys.argv)
+else:
+    def start(context, argv):
+        _start(argv)
+
 # Example usage: "proxy.py --no-cache --ignore http://cdn.com/jalangi --inlineIID --inlineSource --noResultsGUI --analysis ..."
-def start(context, argv):
+def _start(argv):
     global jalangiArgs
     global useCache
 
@@ -85,8 +92,16 @@ def start(context, argv):
         return path if not p.startswith('--') and (os.path.isfile(path) or os.path.isdir(path)) else p
     jalangiArgs = ' '.join(map(mapper, [x for x in argv[1:]]))
 
-@concurrent
-def response(context, flow):
+if (mitmversion >= 0.18):
+    @concurrent
+    def response(flow):
+        _response(flow)
+else:
+    @concurrent
+    def response(context, flow):
+        _response(flow)
+
+def _response(flow):
     # Do not invoke jalangi if the domain is ignored
     for path in ignore:
         if flow.request.url.startswith(path):
@@ -94,7 +109,7 @@ def response(context, flow):
 
     # Do not invoke jalangi if the requested URL contains the query parameter noInstr
     # (e.g. https://cdn.com/jalangi/jalangi.min.js?noInstr=true)
-    if flow.request.query and flow.request.query['noInstr']:
+    if flow.request.query and flow.request.query.get('noInstr', None):
         return
 
     try:
