@@ -93,61 +93,30 @@ if (typeof J$ === 'undefined') {
     var logTmpVarName = JALANGI_VAR + "._tm_p";
     var logSampleFunName = JALANGI_VAR + ".S";
 
+    var logLoopEnterFunName = JALANGI_VAR + ".Le";
+    var logLoopExitFunName = JALANGI_VAR + ".Lr";
+    var logForInBodyEnterFunName = JALANGI_VAR + ".Be";
+    var logLoopBodyExitFunName = JALANGI_VAR + ".Br";
+
+    var logTryEnterFunName = JALANGI_VAR + ".Te";
+    var logTryExitFunName = JALANGI_VAR + ".Tr";
+    var logCatchEnterFunName = JALANGI_VAR + ".Ce";
+    var logCatchExitFunName = JALANGI_VAR + ".Cr";
+    var logFinallyEnterFunName = JALANGI_VAR + ".Ae";
+    var logFinallyExitFunName = JALANGI_VAR + ".Ar";
+    var logTryCatchFinallyExceptionFunName = JALANGI_VAR + ".TCAx";
+
     var logWithFunName = JALANGI_VAR + ".Wi";
     var logBinaryOpFunName = JALANGI_VAR + ".B";
     var logUnaryOpFunName = JALANGI_VAR + ".U";
     var logConditionalFunName = JALANGI_VAR + ".C";
+    var logConditionalExitFunName = JALANGI_VAR + ".Cx";
     var logSwitchLeftFunName = JALANGI_VAR + ".C1";
     var logSwitchRightFunName = JALANGI_VAR + ".C2";
     var logLastFunName = JALANGI_VAR + "._";
     var logX1FunName = JALANGI_VAR + ".X1";
 
     var instrumentCodeFunName = JALANGI_VAR + ".instrumentEvalCode";
-
-
-    var Syntax = {
-        AssignmentExpression: 'AssignmentExpression',
-        ArrayExpression: 'ArrayExpression',
-        BlockStatement: 'BlockStatement',
-        BinaryExpression: 'BinaryExpression',
-        BreakStatement: 'BreakStatement',
-        CallExpression: 'CallExpression',
-        CatchClause: 'CatchClause',
-        ConditionalExpression: 'ConditionalExpression',
-        ContinueStatement: 'ContinueStatement',
-        DoWhileStatement: 'DoWhileStatement',
-        DebuggerStatement: 'DebuggerStatement',
-        EmptyStatement: 'EmptyStatement',
-        ExpressionStatement: 'ExpressionStatement',
-        ForStatement: 'ForStatement',
-        ForInStatement: 'ForInStatement',
-        FunctionDeclaration: 'FunctionDeclaration',
-        FunctionExpression: 'FunctionExpression',
-        Identifier: 'Identifier',
-        IfStatement: 'IfStatement',
-        Literal: 'Literal',
-        LabeledStatement: 'LabeledStatement',
-        LogicalExpression: 'LogicalExpression',
-        MemberExpression: 'MemberExpression',
-        NewExpression: 'NewExpression',
-        ObjectExpression: 'ObjectExpression',
-        Program: 'Program',
-        Property: 'Property',
-        ReturnStatement: 'ReturnStatement',
-        SequenceExpression: 'SequenceExpression',
-        SwitchStatement: 'SwitchStatement',
-        SwitchCase: 'SwitchCase',
-        ThisExpression: 'ThisExpression',
-        ThrowStatement: 'ThrowStatement',
-        TryStatement: 'TryStatement',
-        UnaryExpression: 'UnaryExpression',
-        UpdateExpression: 'UpdateExpression',
-        VariableDeclaration: 'VariableDeclaration',
-        VariableDeclarator: 'VariableDeclarator',
-        WhileStatement: 'WhileStatement',
-        WithStatement: 'WithStatement'
-    };
-
 
     function createBitPattern() {
         var ret = 0;
@@ -229,6 +198,10 @@ if (typeof J$ === 'undefined') {
     function printLineInfoAux(i, ast) {
         if (ast && ast.loc) {
             iidSourceInfo[i] = [ast.loc.start.line, ast.loc.start.column + 1, ast.loc.end.line, ast.loc.end.column + 1];
+
+            /*if (ast.type === 'FunctionExpression' || ast.type === 'FunctionDeclaration') {
+                testFunctionIid(iidSourceInfo[i]);
+            }*/
         }
     }
 
@@ -293,11 +266,11 @@ if (typeof J$ === 'undefined') {
     }
 
     function createLiteralAst(name) {
-        return {type: Syntax.Literal, value: name};
+        return {type: "Literal", value: name};
     }
 
     function createIdentifierAst(name) {
-        return {type: Syntax.Identifier, name: name};
+        return {type: "Identifier", name: name};
     }
 
     function transferLoc(toNode, fromNode) {
@@ -305,47 +278,6 @@ if (typeof J$ === 'undefined') {
             toNode.loc = fromNode.loc;
         if (fromNode.raw)
             toNode.raw = fromNode.loc;
-    }
-
-    function idsOfGetterSetter(node) {
-        var ret = {}, isEmpty = true;
-        if (node.type === "ObjectExpression") {
-            var kind, len = node.properties.length;
-            for (var i = 0; i < len; i++) {
-                if ((kind = node.properties[i].kind) === 'get' || kind === 'set') {
-                    ret[kind + node.properties[i].key.name] = node.properties[i].value.funId;
-                    isEmpty = false;
-                }
-            }
-        }
-        return isEmpty ? undefined : ret;
-    }
-
-    function checkAndGetIid(funId, sid, funName) {
-        var id = getIid();
-        if (!Config.requiresInstrumentation || Config.requiresInstrumentation(id, funId, sid, funName)) {
-            return id;
-        } else {
-            return undefined;
-        }
-    }
-
-    function modifyAst(ast, modifier, term) {
-        var ret;
-        var i = 3; // no. of formal parameters
-        while (term.indexOf('$$') >= 0) {
-            term = term.replace(/\$\$/, arguments[i]);
-            i++;
-        }
-        var args = [];
-        args.push(term);
-        for (; i < arguments.length; i++) {
-            args.push(arguments[i]);
-        }
-        printIidToLoc(ast);
-        ret = modifier.apply(this, args);
-        transferLoc(ret, ast);
-        return ret;
     }
 
     function wrapPutField(node, base, offset, rvalue, isComputed) {
@@ -361,9 +293,8 @@ if (typeof J$ === 'undefined') {
             );
             transferLoc(ret, node);
             return ret;
-        } else {
-            return node;
         }
+        return node;
     }
 
     function wrapModAssign(node, base, offset, op, rvalue, isComputed) {
@@ -379,9 +310,8 @@ if (typeof J$ === 'undefined') {
             );
             transferLoc(ret, node);
             return ret;
-        } else {
-            return node;
         }
+        return node;
     }
 
     function wrapMethodCall(node, base, offset, isCtor, isComputed) {
@@ -419,9 +349,8 @@ if (typeof J$ === 'undefined') {
             );
             transferLoc(ret, node);
             return ret;
-        } else {
-            return node;
         }
+        return node;
     }
 
     function wrapRead(node, name, val, isReUseIid, isGlobal, isScriptLocal) {
@@ -599,6 +528,7 @@ if (typeof J$ === 'undefined') {
     function wrapLiteral(node, ast, funId) {
         if (!Config.INSTR_LITERAL || Config.INSTR_LITERAL(getLiteralValue(funId, node), node)) {
             printIidToLoc(node);
+
             var hasGetterSetter = ifObjectExpressionHasGetterSetter(node);
 
             var ret;
@@ -612,12 +542,27 @@ if (typeof J$ === 'undefined') {
                     }
                     internalFunId = getFnIdFromAst(scope.funNodes[node.name]);
                 }
+
                 ret = replaceInExpr(
-                    logLitFunName + "(" + RP + "1, " + RP + "2, " + RP + "3," + hasGetterSetter + ", " + internalFunId + ")",
+                    logLitFunName + "(" + RP + "1, " + RP + "2, " + RP + "3," + hasGetterSetter + ", null, " + internalFunId + ")",
                     getIid(),
                     ast,
                     createLiteralAst(funId),
                     internalFunId
+                );
+            } else if (funId === N_LOG_OBJECT_LIT) {
+                var objectKeys = [];
+                node.properties.forEach(function (property) {
+                    var key = property.key.type === 'Literal' ? property.key.value : property.key.name;
+                    if (property.kind === 'init') {
+                        objectKeys.push({ name: key, kind: property.kind });
+                    }
+                });
+                ret = replaceInExpr(
+                    logLitFunName + "(" + RP + "1, " + RP + "2, " + RP + "3," + hasGetterSetter + ", " + JSON.stringify(objectKeys) + ")",
+                    getIid(),
+                    ast,
+                    createLiteralAst(funId)
                 );
             } else {
                 ret = replaceInExpr(
@@ -629,21 +574,17 @@ if (typeof J$ === 'undefined') {
             }
             transferLoc(ret, node);
             return ret;
-        } else {
-            return node;
         }
+        return node;
     }
 
     function wrapReturn(node, expr) {
         var lid = (expr === null) ? node : expr;
         printIidToLoc(lid);
-        if (expr === null) {
-            expr = createIdentifierAst("undefined");
-        }
         var ret = replaceInExpr(
-            logReturnFunName + "(" + RP + "1, " + RP + "2)",
+            logReturnFunName + "(" + RP + "1, " + RP + "2, " + createBitPattern(expr === null) + ")",
             getIid(),
-            expr
+            expr || createIdentifierAst("undefined")
         );
         transferLoc(ret, lid);
         return ret;
@@ -658,6 +599,88 @@ if (typeof J$ === 'undefined') {
         );
         transferLoc(ret, expr);
         return ret;
+    }
+
+    function instrumentLoopBodyEnterExit(node, bodyStmts, isFirstDoWhileIteration) {
+        printIidToLoc(node);
+
+        var iid = getIid();
+        var loopBodyExitCall = replaceInStatement(
+            logLoopBodyExitFunName + "(" + RP + "1, " + RP + "2, " + createBitPattern(isFirstDoWhileIteration) + ")",
+            iid,
+            createLiteralAst(node.type));
+        transferLoc(loopBodyExitCall[0].expression, node);
+
+        if (node.type === 'ForInStatement') {
+            var forInBodyEnterCall = replaceInStatement(
+                logForInBodyEnterFunName + "(" + RP + "1, " + logTmpVarName + ")",
+                iid);
+            transferLoc(forInBodyEnterCall[0].expression, node);
+
+            bodyStmts = forInBodyEnterCall.concat(bodyStmts);
+        }
+        return replaceInStatement("try { " + RP + "1 } finally { " + RP + "2 }",
+            bodyStmts, loopBodyExitCall);
+    }
+
+    function instrumentTryEnterExit(node, ast) {
+        printIidToLoc(node);
+
+        var iid = getIid();
+        var enterCall = replaceInStatement(
+            logTryEnterFunName + "(" + RP + "1, " + createBitPattern(node.handler !== null, node.finalizer !== null) + ")",
+            iid);
+        transferLoc(enterCall[0].expression, node);
+
+        var tryExceptionCall = replaceInStatement(
+            logTryCatchFinallyExceptionFunName + "(e)");
+        transferLoc(tryExceptionCall[0].expression, node);
+
+        var exitCall = replaceInStatement(
+            logTryExitFunName + "(" + RP + "1, " + createBitPattern(node.handler !== null, node.finalizer !== null) + ")",
+            iid);
+        transferLoc(exitCall[0].expression, node);
+
+        return replaceInStatement(
+            "try { " + RP + "1 } catch (e) { " + RP + "2 } finally { " + RP + "3 }",
+            enterCall.concat(ast),
+            tryExceptionCall,
+            exitCall);
+    }
+
+    function instrumentCatchFinallyEnterExit(node, ast, enterFunName, exitFunName) {
+        printIidToLoc(node);
+
+        var iid = getIid();
+        var enterCall;
+        if (enterFunName === logCatchEnterFunName) {
+            enterCall = replaceInStatement(
+                enterFunName + "(" + RP + "1, " + RP + "2)",
+                iid,
+                createLiteralAst(node.param.name)
+            );
+        } else {
+            enterCall = replaceInStatement(
+                enterFunName + "(" + RP + "1)",
+                iid
+            );
+        }
+        transferLoc(enterCall[0].expression, node);
+
+        var exitCall = replaceInStatement(
+            exitFunName + "(" + RP + "1)",
+            iid
+        );
+        transferLoc(exitCall[0].expression, node);
+
+        var tryEnterBody = enterCall.concat(ast);
+        var tryEnterExitBody = replaceInStatement(
+            "try { " + RP + "1 } finally { " + RP + "2 }",
+            tryEnterBody,
+            exitCall
+        );
+
+        return tryEnterExitBody;
     }
 
     function wrapWithX1(node, ast) {
@@ -707,16 +730,15 @@ if (typeof J$ === 'undefined') {
             );
             transferLoc(ret, node);
             return ret;
-        } else {
-            return node;
         }
+        return node;
     }
 
     function wrapBinaryOp(node, left, right, operator, isComputed) {
         if (!Config.INSTR_BINARY || Config.INSTR_BINARY(operator, operator)) {
             printOpIidToLoc(node);
             var ret = replaceInExpr(
-                logBinaryOpFunName + "(" + RP + "1, " + RP + "2, " + RP + "3, " + RP + "4," + (createBitPattern(isComputed)) + ")",
+                logBinaryOpFunName + "(" + RP + "1, " + RP + "2, " + RP + "3, " + RP + "4," + (createBitPattern(isComputed, false, false)) + ")",
                 getOpIid(),
                 createLiteralAst(operator),
                 left,
@@ -724,41 +746,42 @@ if (typeof J$ === 'undefined') {
             );
             transferLoc(ret, node);
             return ret;
-        } else {
-            return node;
         }
+        return node;
     }
 
     function wrapLogicalAnd(node, left, right) {
         if (!Config.INSTR_CONDITIONAL || Config.INSTR_CONDITIONAL("&&", node)) {
             printCondIidToLoc(node);
-            var ret = replaceInExpr(
-                logConditionalFunName + "(" + RP + "1, " + RP + "2)?" + RP + "3:" + logLastFunName + "()",
-                getCondIid(),
+            var condIid = getCondIid();
+            var ret = replaceInExpr(logConditionalExitFunName + "(" + RP + "1, " + JSON.stringify("LogicalAnd") + ", " +
+                logConditionalFunName + "(" + RP + "2, " + RP + "3, " + JSON.stringify("LogicalAnd") + ")?" + RP + "4:" + logLastFunName + "())",
+                condIid,
+                condIid,
                 left,
                 right
             );
             transferLoc(ret, node);
             return ret;
-        } else {
-            return node;
         }
+        return node;
     }
 
     function wrapLogicalOr(node, left, right) {
         if (!Config.INSTR_CONDITIONAL || Config.INSTR_CONDITIONAL("||", node)) {
             printCondIidToLoc(node);
-            var ret = replaceInExpr(
-                logConditionalFunName + "(" + RP + "1, " + RP + "2)?" + logLastFunName + "():" + RP + "3",
-                getCondIid(),
+            var condIid = getCondIid();
+            var ret = replaceInExpr(logConditionalExitFunName + "(" + RP + "1, " + JSON.stringify("LogicalOr") + ", " +
+                logConditionalFunName + "(" + RP + "2, " + RP + "3, " + JSON.stringify("LogicalOr") + ")?" + logLastFunName + "():" + RP + "4" + ")",
+                condIid,
+                condIid,
                 left,
                 right
             );
             transferLoc(ret, node);
             return ret;
-        } else {
-            return node;
         }
+        return node;
     }
 
     function wrapSwitchDiscriminant(node, discriminant) {
@@ -771,9 +794,8 @@ if (typeof J$ === 'undefined') {
             );
             transferLoc(ret, node);
             return ret;
-        } else {
-            return node;
         }
+        return node;
     }
 
     function wrapSwitchTest(node, test) {
@@ -786,9 +808,8 @@ if (typeof J$ === 'undefined') {
             );
             transferLoc(ret, node);
             return ret;
-        } else {
-            return node;
         }
+        return node;
     }
 
     function wrapWith(node) {
@@ -801,29 +822,38 @@ if (typeof J$ === 'undefined') {
             );
             transferLoc(ret, node);
             return ret;
-        } else {
-            return node;
         }
+        return node;
     }
 
-    function wrapConditional(node, test) {
+    function wrapConditional(node, type) {
         if (node === null) {
             return node;
         } // to handle for(;;) ;
 
         if (!Config.INSTR_CONDITIONAL || Config.INSTR_CONDITIONAL("other", node)) {
             printCondIidToLoc(node);
-            var ret = replaceInExpr(
-                logConditionalFunName + "(" + RP + "1, " + RP + "2)",
+            var ret = replaceInExpr(logConditionalFunName + "(" + RP + "1, " + RP + "2, " + JSON.stringify(type) + ")",
                 getCondIid(),
-                test
+                node
             );
             transferLoc(ret, node);
             return ret;
-        } else {
-            return node;
         }
+        return node;
+    }
 
+    function wrapConditionalOuter(node) {
+        if (!Config.INSTR_CONDITIONAL || Config.INSTR_CONDITIONAL("other", node)) {
+            printCondIidToLoc(node);
+            var ret = replaceInExpr(logConditionalExitFunName + "(" + RP + "1, " + JSON.stringify(node.type) + ", " + RP + "2)",
+                getCondIid(),
+                node
+            );
+            transferLoc(ret, node);
+            return ret;
+        }
+        return node;
     }
 
 //    function createCallWriteAsStatement(node, name, val) {
@@ -847,13 +877,13 @@ if (typeof J$ === 'undefined') {
         return ret;
     }
 
-    function createCallInitAsStatement(node, name, val, isArgumentSync, lhs, isCatchParam, isAssign) {
+    function createCallInitAsStatement(node, name, val, isArgumentSync, lhs, isCatchParam, isAssign, isVariableDecl, isEnclosingFunctionName) {
         printIidToLoc(node);
         var ret;
 
         if (isAssign)
             ret = replaceInStatement(
-                RP + "1 = " + logInitFunName + "(" + RP + "2, " + RP + "3, " + RP + "4, " + createBitPattern(isArgumentSync, false, isCatchParam) + ")",
+                RP + "1 = " + logInitFunName + "(" + RP + "2, " + RP + "3, " + RP + "4, " + createBitPattern(isArgumentSync, false, isCatchParam, isVariableDecl, isEnclosingFunctionName) + ")",
                 lhs,
                 getIid(),
                 name,
@@ -861,7 +891,7 @@ if (typeof J$ === 'undefined') {
             );
         else
             ret = replaceInStatement(
-                logInitFunName + "(" + RP + "1, " + RP + "2, " + RP + "3, " + createBitPattern(isArgumentSync, false, isCatchParam) + ")",
+                logInitFunName + "(" + RP + "1, " + RP + "2, " + RP + "3, " + createBitPattern(isArgumentSync, false, isCatchParam, isVariableDecl, isEnclosingFunctionName) + ")",
                 getIid(),
                 name,
                 val
@@ -894,7 +924,7 @@ if (typeof J$ === 'undefined') {
 
     function wrapForIn(node, left, right, body) {
         printIidToLoc(node);
-        var tmp, extra, isDeclaration = (left.type === 'VariableDeclaration');
+        var tmp, extra, isDeclaration = left.type === 'VariableDeclaration';
         if (isDeclaration) {
             var name = node.left.declarations[0].id.name;
             tmp = replaceInExpr(name + " = " + logTmpVarName);
@@ -913,25 +943,44 @@ if (typeof J$ === 'undefined') {
         }
         if (isDeclaration) {
             ret = replaceInStatement(
-                "function n() {  for(" + logTmpVarName + " in " + RP + "1) {var " + name + " = " + RP + "2;\n {" + RP + "3}}}", right, wrapWithX1(node, extra.right), body);
+                "function n() {  for(" + logTmpVarName + " in " + RP + "1) {var " + name + " = " + RP + "2;\n {" + RP + "3}}}",
+                right, wrapWithX1(node, extra.right), body);
         } else {
             ret = replaceInStatement(
-                "function n() {  for(" + logTmpVarName + " in " + RP + "1) {" + RP + "2;\n {" + RP + "3}}}", right, wrapWithX1(node, extra), body);
+                "function n() {  for(" + logTmpVarName + " in " + RP + "1) {" + RP + "2;\n {" + RP + "3}}}",
+                right, wrapWithX1(node, extra), body);
         }
         ret = ret[0].body.body[0];
         transferLoc(ret, node);
-        return ret;
-    }
 
+        ret.body.body = instrumentLoopBodyEnterExit(ret, ret.body.body, false);
 
-    function wrapForInBody(node, body, name) {
-        printIidToLoc(node);
-        var ret = replaceInStatement(
-            "function n() { " + logInitFunName + "(" + RP + "1, '" + name + "'," + name + ","+createBitPattern(false, true, false)+");\n {" + RP + "2}}", getIid(), [body]);
+        var iid = getIid();
+        var loopExitCall = replaceInStatement(
+            logLoopExitFunName + "(" + RP + "1, " + RP + "2)",
+            iid,
+            createLiteralAst(node.type));
+        transferLoc(loopExitCall[0].expression, node);
 
-        ret = ret[0].body;
-        transferLoc(ret, node);
-        return ret;
+        var result = {
+            type: "BlockStatement",
+            body: replaceInStatement("try { " + RP + "1 } finally { " + RP + "2 }",
+                [ret], loopExitCall)
+        };
+
+        if (node.label) {
+            var loop = result.body[0].block.body[0];
+            result.body[0].block.body[0] = {
+                type: 'LabeledStatement',
+                label: {
+                    type: 'Identifier',
+                    name: node.label
+                },
+                body: loop
+            };
+        }
+
+        return result;
     }
 
     function wrapCatchClause(node, body, name) {
@@ -940,7 +989,7 @@ if (typeof J$ === 'undefined') {
             body.unshift(createCallInitAsStatement(node,
                 createLiteralAst(name),
                 createIdentifierAst(name),
-                false, createIdentifierAst(name), true, true)[0]);
+                false, createIdentifierAst(name), true, true, true, false)[0]);
         }
     }
 
@@ -1003,8 +1052,7 @@ if (typeof J$ === 'undefined') {
                     ret = ret.concat(createCallInitAsStatement(node,
                         createLiteralAst("arguments"),
                         ident,
-                        true,
-                        ident, false, true));
+                        true, ident, false, true, true, false));
                 }
             }
         }
@@ -1018,8 +1066,7 @@ if (typeof J$ === 'undefined') {
                                 ret = ret.concat(createCallInitAsStatement(node,
                                     createLiteralAst(name),
                                     wrapLiteral(ident, ident, N_LOG_FUNCTION_LIT),
-                                    false,
-                                    ident, false, true));
+                                    false, ident, false, true, false, false));
                             } else {
                                 ident = createIdentifierAst(name);
                                 ident.loc = scope.funLocs[name];
@@ -1034,8 +1081,7 @@ if (typeof J$ === 'undefined') {
                                 ident.loc = scope.funLocs[name];
                                 ret = ret.concat(createCallInitAsStatement(node,
                                     createLiteralAst(name), ident,
-                                    false,
-                                    ident, false, true));
+                                    false, ident, false, true, true, true));
                             }
                         }
                         if (scope.vars[name] === "arg") {
@@ -1045,7 +1091,7 @@ if (typeof J$ === 'undefined') {
                                     createLiteralAst(name),
                                     ident,
                                     true,
-                                    ident, false, true));
+                                    ident, false, true, true, false));
                             }
                         }
                         if (scope.vars[name] === "var") {
@@ -1053,7 +1099,7 @@ if (typeof J$ === 'undefined') {
                                 ret = ret.concat(createCallInitAsStatement(node,
                                     createLiteralAst(name),
                                     createIdentifierAst(name),
-                                    false, undefined, false, false));
+                                    false, undefined, false, false, true, false));
                             }
                         }
                     }
@@ -1223,13 +1269,6 @@ if (typeof J$ === 'undefined') {
         scope = node.scope;
     }
 
-    function funCond0(node) {
-        node.test = wrapWithX1(node, node.test);
-        node.init = wrapWithX1(node, node.init);
-        node.update = wrapWithX1(node, node.update);
-        return node;
-    }
-
     function mergeBodies(node) {
         printIidToLoc(node);
         var ret = replaceInStatement(
@@ -1373,7 +1412,13 @@ if (typeof J$ === 'undefined') {
         'Program': setScope,
         'FunctionDeclaration': setScope,
         'FunctionExpression': setScope,
-        'CatchClause': setScope
+        'CatchClause': setScope,
+        "LabeledStatement": function (node) {
+            if (node.body.type === 'ForInStatement') {
+                node.body.label = node.label.name;
+                node.remove = true;
+            }
+        }
     };
 
     var visitorRRPost = {
@@ -1516,23 +1561,28 @@ if (typeof J$ === 'undefined') {
             return node;
         },
         "ForInStatement": function (node) {
-            var ret = wrapHash(node.right, node.right);
-            node.right = ret;
+            node.right = wrapHash(node.right, node.right);
+            return wrapForIn(node, node.left, node.right, node.body)
+        },
+        "LabeledStatement": function (node) {
+            if (node.remove) {
+                return node.body;
+            }
+            return node;
+        },
+        "TryStatement": function (node) {
+            node.block.body = instrumentTryEnterExit(node, node.block.body);
+            if (node.finalizer) {
+                node.finalizer.body = instrumentCatchFinallyEnterExit(node, node.finalizer.body, logFinallyEnterFunName, logFinallyExitFunName);
+            }
 
-            node = wrapForIn(node, node.left, node.right, node.body);
-            //var name;
-            //if (node.left.type === 'VariableDeclaration') {
-            //    name = node.left.declarations[0].id.name;
-            //} else {
-            //    name = node.left.name;
-            //}
-            //node.body = wrapForInBody(node, node.body, name);
             return node;
         },
         "CatchClause": function (node) {
             var name;
             name = node.param.name;
             wrapCatchClause(node, node.body.body, name);
+            node.body.body = instrumentCatchFinallyEnterExit(node, node.body.body, logCatchEnterFunName, logCatchExitFunName);
             scope = scope.parent;
             return node;
         },
@@ -1554,14 +1604,27 @@ if (typeof J$ === 'undefined') {
     };
 
     function funCond(node) {
-        var ret = wrapConditional(node.test, node.test);
-        node.test = ret;
+        node.test = wrapConditional(node.test, node.type);
         node.test = wrapWithX1(node, node.test);
         node.init = wrapWithX1(node, node.init);
         node.update = wrapWithX1(node, node.update);
+        if (node.body) {
+            var bodyStmts;
+            if (node.body.type === "BlockStatement") {
+                bodyStmts = node.body.body;
+            } else {
+                bodyStmts = [node.body];
+            }
+            node.body = {
+                type: "BlockStatement",
+                body: instrumentLoopBodyEnterExit(node, bodyStmts, false)
+            };
+        }
+        if (node.type === 'ConditionalExpression') {
+            return wrapConditionalOuter(node);
+        }
         return node;
     }
-
 
     var visitorOps = {
         "Program": function (node) {
@@ -1796,12 +1859,8 @@ if (typeof J$ === 'undefined') {
         astUtil.transformAst(ast, visitorPost, visitorPre);
     }
 
-
     // START of Liang Gong's AST post-processor
     function hoistFunctionDeclaration(ast, hoisteredFunctions) {
-        if (!hoisteredFunctions) {
-            hoisteredFunctions = [];
-        }
         var key, child, startIndex = 0;
         if (ast.body) {
             var newBody = [];
@@ -1822,9 +1881,19 @@ if (typeof J$ === 'undefined') {
                 }
             }
             for (var i = startIndex; i < ast.body.length; i++) {
-
                 if (ast.body[i].type === 'FunctionDeclaration') {
-                    newBody.push(ast.body[i]);
+                    var name = ast.body[i].id.name;
+                    var params = ast.body[i].params.map(function (param) { return param.name; }).join(', ');
+                    var assignStmt;
+                    if (ast.body[i].body === null) {
+                        assignStmt = acorn.parse(
+                            "var " + name + " = function " + name + "(" + params + ") {}").body;
+                    } else {
+                        assignStmt = replaceInStatement(
+                            "var " + name + " = function " + name + "(" + params + ") { " + RP + "1 }",
+                            ast.body[i].body.body);
+                    }
+                    newBody.push(assignStmt[0]);
                     if (newBody.length !== i + 1) {
                         hoisteredFunctions.push(ast.body[i].id.name);
                     }
@@ -1838,9 +1907,7 @@ if (typeof J$ === 'undefined') {
             while (ast.body.length > 0) {
                 ast.body.pop();
             }
-            for (var i = 0; i < newBody.length; i++) {
-                ast.body.push(newBody[i]);
-            }
+            Array.prototype.push.apply(ast.body, newBody);
         } else {
             //console.log(typeof ast.body);
         }
@@ -1854,15 +1921,17 @@ if (typeof J$ === 'undefined') {
 
             }
         }
+
+        return ast;
     }
 
     // END of Liang Gong's AST post-processor
 
-    function transformAst(newAst, visitorsPost, visitorsPre) {
+    function transformString(code, visitorsPost, visitorsPre) {
 //         StatCollector.resumeTimer("parse");
 //        console.time("parse")
 //        var newAst = esprima.parse(code, {loc:true, range:true});
-//        var newAst = acorn.parse(code, { locations: true, ecmaVersion: 6 });
+        var newAst = acorn.parse(code, {locations: true, ecmaVersion: 6 });
 //        console.timeEnd("parse")
 //        StatCollector.suspendTimer("parse");
 //        StatCollector.resumeTimer("transform");
@@ -1880,7 +1949,7 @@ if (typeof J$ === 'undefined') {
 
     // if this string is discovered inside code passed to instrumentCode(),
     // the code will not be instrumented
-    var noInstr = "JALANGI DO NOT INSTRUMENT";
+    var noInstr = "// JALANGI DO NOT INSTRUMENT";
 
     function initializeIIDCounters(forEval) {
         var adj = forEval ? IID_INC_STEP / 2 : 0;
@@ -1891,13 +1960,16 @@ if (typeof J$ === 'undefined') {
 
 
     function instrumentEvalCode(code, iid, isDirect) {
+        var iids = sandbox.smap[sandbox.sid];
         return instrumentCode({
             code: code,
             thisIid: iid,
             isEval: true,
             inlineSourceMap: true,
             inlineSource: true,
-            isDirect: isDirect
+            isDirect: isDirect,
+            instCodeFileName: iids.instrumentedCodeFileName,
+            origCodeFileName: iids.originalCodeFileName
         }).code;
     }
 
@@ -1911,19 +1983,25 @@ if (typeof J$ === 'undefined') {
     /**
      * Instruments the provided code.
      *
-     * @param {{allowReturnOutsideFunction: boolean, applyASTHandler: function, isEval: boolean, code: string, thisIid: int, origCodeFileName: string, instCodeFileName: string, inlineSourceMap: boolean, inlineSource: boolean, url: string, isDirect: boolean }} options
+     * @param {{isEval: boolean, code: string, thisIid: int, origCodeFileName: string, instCodeFileName: string, inlineSourceMap: boolean, inlineSource: boolean, url: string, isDirect: boolean }} options
      * @return {{code:string, instAST: object, sourceMapObject: object, sourceMapString: string}}
      *
      */
     function instrumentCode(options) {
         var aret, skip = false;
         var isEval = options.isEval,
-            code = removeShebang(options.code), thisIid = options.thisIid, inlineSource = options.inlineSource, url = options.url;
+            code = options.code, thisIid = options.thisIid, inlineSource = options.inlineSource, url = options.url;
 
-        iidSourceInfo = {};
+        iidSourceInfo = { /*code: options.code*/ };
         initializeIIDCounters(isEval);
-        instCodeFileName = options.instCodeFileName ? options.instCodeFileName : (options.isDirect?"eval":"evalIndirect");
-        origCodeFileName = options.origCodeFileName ? options.origCodeFileName : (options.isDirect?"eval":"evalIndirect");
+
+        if (options.isEval) {
+            instCodeFileName = (options.isDirect ? "eval": "evalIndirect") + "(" + options.instCodeFileName + ")";
+            origCodeFileName = (options.isDirect ? "eval": "evalIndirect") + "(" + options.origCodeFileName + ")";
+        } else {
+            instCodeFileName = options.instCodeFileName ? options.instCodeFileName : (options.isDirect?"eval":"evalIndirect");
+            origCodeFileName = options.origCodeFileName ? options.origCodeFileName : (options.isDirect?"eval":"evalIndirect");
+        }
 
         if (sandbox.analysis && sandbox.analysis.instrumentCodePre) {
             aret = sandbox.analysis.instrumentCodePre(thisIid, code, options.isDirect);
@@ -1933,27 +2011,24 @@ if (typeof J$ === 'undefined') {
             }
         }
 
-        var instrument = !skip && typeof code === 'string';
-        var newAst = acorn.parse(code, {
-            allowReturnOutsideFunction: options.allowReturnOutsideFunction,
-            ecmaVersion: 6,
-            locations: true,
-            onComment: function (block, text, start, end) {
-                // "JALANGI DO NOT INSTRUMENT" could be in a JavaScript string literal, it must be a comment
-                if (text.trim() === noInstr) {
-                    instrument = false;
+        if (!skip && typeof code === 'string' && code.indexOf(noInstr) < 0) {
+            try {
+                code = removeShebang(code);
+                iidSourceInfo = { /*code: options.code*/ };
+                var newAst;
+                if (Config.ENABLE_SAMPLING) {
+                    newAst = transformString(code, [visitorCloneBodyPre, visitorRRPost, visitorOps, visitorMergeBodyPre], [undefined, visitorRRPre, undefined, undefined]);
+                } else {
+                    newAst = transformString(code, [visitorRRPost, visitorOps], [visitorRRPre, undefined]);
                 }
+                // post-process AST to hoist function declarations (required for Firefox)
+                var hoistedFcts = [];
+                newAst = hoistFunctionDeclaration(newAst, hoistedFcts);
+                var newCode = esotope.generate(newAst, {comment: true});
+                code = newCode + "\n" + noInstr + "\n";
+            } catch(ex) {
+                console.log("Failed to instrument "+code+"\n"+ex);
             }
-        });
-        if (instrument) {
-            iidSourceInfo = {};
-            if (Config.ENABLE_SAMPLING) {
-                newAst = transformAst(newAst, [visitorCloneBodyPre, visitorRRPost, visitorOps, visitorMergeBodyPre], [undefined, visitorRRPre, undefined, undefined]);
-            } else {
-                newAst = transformAst(newAst, [visitorRRPost, visitorOps], [visitorRRPre, undefined]);
-            }
-            // post-process AST to hoist function declarations (required for Firefox)
-            hoistFunctionDeclaration(newAst);
         }
 
         var tmp = {};
@@ -1972,44 +2047,66 @@ if (typeof J$ === 'undefined') {
             tmp.code = iidSourceInfo.code = options.code;
         }
 
-        if (options.sourceInfoExtension) {
-            for (var key in options.sourceInfoExtension) {
-                tmp[key] = iidSourceInfo[key] = options.sourceInfoExtension[key];
-            }
-        }
-
         var prepend = JSON.stringify(iidSourceInfo);
-        var prefix, prefixAst;
+        var instCode;
         if (options.inlineSourceMap) {
-            prefix = JALANGI_VAR + ".iids = " + prepend + ";";
+            instCode = JALANGI_VAR + ".iids = " + prepend + ";\n" + code;
         } else {
-            prefix = JALANGI_VAR + ".iids = " + JSON.stringify(tmp) + ";";
+            instCode = JALANGI_VAR + ".iids = " + JSON.stringify(tmp) + ";\n" + code;
         }
-        prefixAst = acorn.parse(prefix);
-        Array.prototype.unshift.apply(newAst.body, prefixAst.body);
 
         if (isEval && sandbox.analysis && sandbox.analysis.instrumentCode) {
-            // It is expensive to serialize and reparse HTML, ideally
-            // analysis.instrumentCode should only be allowed to mutate newAst
-            var instCode = esotope.generate(newAst, {comment: true, format: esotope.FORMAT_MINIFY});
             aret = sandbox.analysis.instrumentCode(thisIid, instCode, newAst, options.isDirect);
             if (aret) {
-                newAst = acorn.parse(aret.result);
+                instCode = aret.result;
             }
         }
 
-        var result = {instAST: newAst, sourceMapObject: iidSourceInfo, sourceMapString: prepend};
-        if (options.applyASTHandler) {
-            result.code = options.applyASTHandler(result);
-        }
-        if (!result.code) {
-            result.code = esotope.generate(newAst, {comment: true, format: esotope.FORMAT_MINIFY});
-        }
-        if (instrument) {
-            result.code += "\n//" + noInstr + "\n";
-        }
-        return result;
+        return {code: instCode, instAST: newAst, sourceMapObject: iidSourceInfo, sourceMapString: prepend};
+
     }
+
+    /*
+    function testFunctionIid(loc) {
+        extractFunctionBodyFromSource(iidSourceInfo.code, {
+            col: { start: loc[1]-1, end: loc[3]-1 },
+            line: { start: loc[0]-1, end: loc[2]-1 }
+        });
+    }
+
+    function extractFunctionBodyFromSource(source, loc) {
+        var startOffset = nthIndex(source, "\n", loc.line.start) + loc.col.start;
+        var endOffset = nthIndex(source, "\n", loc.line.end) + loc.col.end;
+
+        var code = source.substring(startOffset, endOffset + 1); // +1 because offset is exclusive
+
+        var bodyStart = code.indexOf("{") + 1;
+        var bodyEnd = code.lastIndexOf("}");
+
+        var result = code.substring(bodyStart, bodyEnd);
+
+        try {
+            acorn.parse(result, { allowReturnOutsideFunction: true });
+        } catch (e) {
+            console.log('Incorrect IID for function literal', code);
+        }
+    }
+
+    function getStackTrace() {
+        var obj = {};
+        Error.captureStackTrace(obj, getStackTrace);
+        return obj.stack;
+    }
+
+    function nthIndex(str, pat, n){
+        var L= str.length, i= -1;
+        while(n-- && i++<L){
+            i= str.indexOf(pat, i);
+            if (i < 0) break;
+        }
+        return i;
+    }
+    */
 
     sandbox.instrumentCode = instrumentCode;
     sandbox.instrumentEvalCode = instrumentEvalCode;

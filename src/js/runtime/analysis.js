@@ -40,6 +40,7 @@ if (typeof J$ === 'undefined') {
     var global = this;
     var Function = global.Function;
     var returnStack = [];
+    var tryCatchFinallyExceptionVal;
     var wrappedExceptionVal;
     var lastVal;
     var switchLeft;
@@ -199,8 +200,7 @@ if (typeof J$ === 'undefined') {
         var aret, skip = false, result;
 
         if (sandbox.analysis && sandbox.analysis.invokeFunPre) {
-            aret = f ? sandbox.analysis.invokeFunPre(iid, f, base, args, isConstructor, isMethod, f[SPECIAL_PROP_IID], f[SPECIAL_PROP_SID])
-                     : sandbox.analysis.invokeFunPre(iid, f, base, args, isConstructor, isMethod);
+            aret = sandbox.analysis.invokeFunPre(iid, f, base, args, isConstructor, isMethod, f[SPECIAL_PROP_IID], f[SPECIAL_PROP_SID]);
             if (aret) {
                 f = aret.f;
                 base = aret.base;
@@ -245,7 +245,7 @@ if (typeof J$ === 'undefined') {
 
     var hasGetOwnPropertyDescriptor = typeof Object.getOwnPropertyDescriptor === 'function';
     // object/function/regexp/array Literal
-    function T(iid, val, type, hasGetterSetter, internalIid) {
+    function T(iid, val, type, hasGetterSetter, objectKeys, internalIid) {
         var aret;
         associateSidWithFunction(val, internalIid);
         if (hasGetterSetter) {
@@ -264,7 +264,7 @@ if (typeof J$ === 'undefined') {
             }
         }
         if (sandbox.analysis && sandbox.analysis.literal) {
-            aret = sandbox.analysis.literal(iid, val, hasGetterSetter);
+            aret = sandbox.analysis.literal(iid, val, hasGetterSetter, objectKeys);
             if (aret) {
                 val = aret.result;
             }
@@ -286,7 +286,7 @@ if (typeof J$ === 'undefined') {
 
     // variable declaration (Init)
     function N(iid, name, val, flags) {
-        var bFlags = decodeBitPattern(flags, 3); // [isArgument, isLocalSync, isCatchParam]
+        var bFlags = decodeBitPattern(flags, 5); // [isArgument, isLocalSync, isCatchParam, isVariableDecl, isEnclosingFunctionName]
         // isLocalSync is only true when we sync variables inside a for-in loop
         var aret;
 
@@ -295,9 +295,9 @@ if (typeof J$ === 'undefined') {
         }
         if (!bFlags[1] && sandbox.analysis && sandbox.analysis.declare) {
             if (bFlags[0] && argIndex > 1) {
-                sandbox.analysis.declare(iid, name, val, bFlags[0], argIndex - 2, bFlags[2]);
+                sandbox.analysis.declare(iid, name, val, bFlags[0], argIndex - 2, bFlags[2], bFlags[3], bFlags[4]);
             } else {
-                sandbox.analysis.declare(iid, name, val, bFlags[0], -1, bFlags[2]);
+                sandbox.analysis.declare(iid, name, val, bFlags[0], -1, bFlags[2], bFlags[3], bFlags[4]);
             }
             if (aret) {
                 val = aret.result;
@@ -424,10 +424,11 @@ if (typeof J$ === 'undefined') {
     }
 
     // Return statement
-    function Rt(iid, val) {
+    function Rt(iid, val, flags) {
         var aret;
         if (sandbox.analysis && sandbox.analysis._return) {
-            aret = sandbox.analysis._return(iid, val);
+            var bFlags = decodeBitPattern(flags, 1); // [isEmpty]
+            aret = sandbox.analysis._return(iid, val, bFlags[0]);
             if (aret) {
                 val = aret.result;
             }
@@ -714,10 +715,10 @@ if (typeof J$ === 'undefined') {
     }
 
     // Expression in conditional
-    function C(iid, left) {
+    function C(iid, left, type) {
         var aret;
         if (sandbox.analysis && sandbox.analysis.conditional) {
-            aret = sandbox.analysis.conditional(iid, left);
+            aret = sandbox.analysis.conditional(iid, left, type);
             if (aret) {
                 left = aret.result;
             }
@@ -725,6 +726,14 @@ if (typeof J$ === 'undefined') {
 
         lastVal = left;
         return (lastComputedValue = left);
+    }
+
+    // Conditional exit
+    function Cx(iid, type, result) {
+        if (sandbox.analysis && sandbox.analysis.conditionalExit) {
+            sandbox.analysis.conditionalExit(iid, type, result);
+        }
+        return result;
     }
 
     function S(iid, f) {
@@ -753,6 +762,72 @@ if (typeof J$ === 'undefined') {
         }
     }
 
+    function Le(iid) {
+        
+    }
+
+    function Lr(iid, type) {
+        if (sandbox.analysis && sandbox.analysis.loopExit) {
+            sandbox.analysis.loopExit(iid, type);
+        }
+    }
+
+    function Be(iid, current) {
+        if (sandbox.analysis && sandbox.analysis.forInBodyEnter) {
+            sandbox.analysis.forInBodyEnter(iid, current);
+        }
+    }
+
+    function Br(iid, type, flags) {
+        if (sandbox.analysis && sandbox.analysis.loopBodyExit) {
+            var bFlags = decodeBitPattern(flags, 1); // [isFirstDoWhileIteration]
+            sandbox.analysis.loopBodyExit(iid, type, bFlags[0]);
+        }
+    }
+
+    function Te(iid, flags) {
+        tryCatchFinallyExceptionVal = null;
+        if (sandbox.analysis && sandbox.analysis.tryEnter) {
+            var bFlags = decodeBitPattern(flags, 2);
+            sandbox.analysis.tryEnter(iid, bFlags[0], bFlags[1]);
+        }
+    }
+
+    function Tr(iid, flags) {
+        if (sandbox.analysis && sandbox.analysis.tryExit) {
+            var bFlags = decodeBitPattern(flags, 2);
+            sandbox.analysis.tryExit(iid, bFlags[0], bFlags[1], tryCatchFinallyExceptionVal);
+        }
+    }
+
+    function Ce(iid, name) {
+        if (sandbox.analysis && sandbox.analysis.catchEnter) {
+            sandbox.analysis.catchEnter(iid, name);
+        }
+    }
+
+    function Cr(iid) {
+        if (sandbox.analysis && sandbox.analysis.catchExit) {
+            sandbox.analysis.catchExit(iid);
+        }
+    }
+
+    function Ae(iid) {
+        if (sandbox.analysis && sandbox.analysis.finallyEnter) {
+            sandbox.analysis.finallyEnter(iid);
+        }
+    }
+
+    function Ar(iid) {
+        if (sandbox.analysis && sandbox.analysis.finallyExit) {
+            sandbox.analysis.finallyExit(iid);
+        }
+    }
+
+    function TCAx(exception) {
+        tryCatchFinallyExceptionVal = { exception: exception };
+        throw exception;
+    }
 
     function log(str) {
         if (sandbox.Results && sandbox.Results.execute) {
@@ -767,9 +842,12 @@ if (typeof J$ === 'undefined') {
 
     //----------------------------------- End Jalangi Library backend ---------------------------------
 
+    sandbox.callFun = callFun;
+
     sandbox.U = U; // Unary operation
     sandbox.B = B; // Binary operation
     sandbox.C = C; // Condition
+    sandbox.Cx = Cx; // Condition exit
     sandbox.C1 = C1; // Switch key
     sandbox.C2 = C2; // case label C1 === C2
     sandbox._ = last;  // Last value passed to C
@@ -797,6 +875,18 @@ if (typeof J$ === 'undefined') {
     sandbox.X1 = X1; // top level expression
     sandbox.Wi = Wi; // with statement
     sandbox.endExecution = endExecution;
+
+    sandbox.Le = Le; // Loop enter
+    sandbox.Lr = Lr; // Loop exit
+    sandbox.Be = Be; // For in body enter
+    sandbox.Br = Br; // Loop body exit
+    sandbox.Te = Te; // Try enter
+    sandbox.Tr = Tr; // Try exit
+    sandbox.Ce = Ce; // Catch enter
+    sandbox.Cr = Cr; // Catch exit
+    sandbox.Ae = Ae; // Finally enter
+    sandbox.Ar = Ar; // Finally exit
+    sandbox.TCAx = TCAx; // Try catch finally exception
 
     sandbox.S = S;
 
