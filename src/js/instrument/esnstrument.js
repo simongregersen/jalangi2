@@ -553,13 +553,13 @@ if (typeof J$ === 'undefined') {
             } else if (funId === N_LOG_OBJECT_LIT) {
                 var objectKeys = [];
                 node.properties.forEach(function (property) {
-                    var key = property.key.type === 'Literal' ? property.key.value : property.key.name;
+                    var key = property.key.type === 'Literal' ? property.key.raw : JSON.stringify(property.key.name);
                     if (property.kind === 'init') {
-                        objectKeys.push({ name: key, kind: property.kind });
+                        objectKeys.push('{ name: ' + key + ', kind: ' + JSON.stringify(property.kind) + '}');
                     }
                 });
                 ret = replaceInExpr(
-                    logLitFunName + "(" + RP + "1, " + RP + "2, " + RP + "3," + hasGetterSetter + ", " + JSON.stringify(objectKeys) + ")",
+                    logLitFunName + "(" + RP + "1, " + RP + "2, " + RP + "3," + hasGetterSetter + ", [" + objectKeys.join(', ') + "])",
                     getIid(),
                     ast,
                     createLiteralAst(funId)
@@ -2027,7 +2027,8 @@ if (typeof J$ === 'undefined') {
                 var newCode = esotope.generate(newAst, {comment: true});
                 code = newCode + "\n" + noInstr + "\n";
             } catch(ex) {
-                console.log("Failed to instrument "+code+"\n"+ex);
+                console.log("Failed to instrument", code);
+                throw ex;
             }
         }
 
