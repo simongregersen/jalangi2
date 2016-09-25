@@ -38,9 +38,9 @@ if (typeof J$ === 'undefined') {
             }
             if ((ret = sandbox.smap[sid])) {
                 var fname = ret.originalCodeFileName;
-                if (ret.evalSid !== undefined) {
+                /*if (ret.evalSid !== undefined) {
                     fname = fname+sandbox.iidToLocation(ret.evalSid, ret.evalIid);
-                }
+                }*/
                 arr = ret[iid];
                 if (arr) {
                     if (sandbox.Results) {
@@ -48,8 +48,10 @@ if (typeof J$ === 'undefined') {
                     } else {
                         return "(" + fname + ":" + arr[0] + ":" + arr[1] + ":" + arr[2] + ":" + arr[3] + ")";
                     }
-                } else {
+                } else if (typeof iid !== "undefined") {
                     return "(" + fname + ":iid" + iid + ")";
+                } else {
+                    return "(" + fname + ")";
                 }
             }
         }
