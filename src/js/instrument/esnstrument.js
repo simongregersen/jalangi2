@@ -285,7 +285,7 @@ if (typeof J$ === 'undefined') {
             printIidToLoc(node);
             var ret = replaceInExpr(
                 logPutFieldFunName +
-                "(" + RP + "1, " + RP + "2, " + RP + "3, " + RP + "4," + (createBitPattern(isComputed, false)) + ")",
+                "(" + RP + "1, " + RP + "2, " + RP + "3, " + RP + "4, " + (createBitPattern(isComputed, false)) + ")",
                 getIid(),
                 base,
                 offset,
@@ -301,7 +301,7 @@ if (typeof J$ === 'undefined') {
         if (!Config.INSTR_PROPERTY_BINARY_ASSIGNMENT || Config.INSTR_PROPERTY_BINARY_ASSIGNMENT(op, node.computed ? null : offset.value, node)) {
             printModIidToLoc(node);
             var ret = replaceInExpr(
-                logAssignFunName + "(" + RP + "1," + RP + "2," + RP + "3," + RP + "4," + (createBitPattern(isComputed)) + ")(" + RP + "5)",
+                logAssignFunName + "(" + RP + "1, " + RP + "2, " + RP + "3, " + RP + "4, " + (createBitPattern(isComputed)) + ")(" + RP + "5)",
                 getIid(),
                 base,
                 offset,
@@ -342,7 +342,7 @@ if (typeof J$ === 'undefined') {
         if (!Config.INSTR_GETFIELD || Config.INSTR_GETFIELD(node.computed ? null : offset.value, node)) {
             printIidToLoc(node);
             var ret = replaceInExpr(
-                logGetFieldFunName + "(" + RP + "1, " + RP + "2, " + RP + "3," + (createBitPattern(isComputed,false, false)) + ")",
+                logGetFieldFunName + "(" + RP + "1, " + RP + "2, " + RP + "3, " + (createBitPattern(isComputed,false, false)) + ")",
                 getIid(),
                 base,
                 offset
@@ -357,7 +357,7 @@ if (typeof J$ === 'undefined') {
         if (!Config.INSTR_READ || Config.INSTR_READ(name, node)) {
             printIidToLoc(node);
             var ret = replaceInExpr(
-                logReadFunName + "(" + RP + "1, " + RP + "2, " + RP + "3," + (createBitPattern(isGlobal,isScriptLocal)) + ")",
+                logReadFunName + "(" + RP + "1, " + RP + "2, " + RP + "3, " + (createBitPattern(isGlobal,isScriptLocal)) + ")",
                 isReUseIid ? getPrevIidNoInc() : getIid(),
                 name,
                 val
@@ -406,7 +406,7 @@ if (typeof J$ === 'undefined') {
         if (!Config.INSTR_WRITE || Config.INSTR_WRITE(name, node)) {
             printIidToLoc(node);
             var ret = replaceInExpr(
-                logWriteFunName + "(" + RP + "1, " + RP + "2, " + RP + "3, " + RP + "4," + (createBitPattern(isGlobal,isScriptLocal,isDeclaration)) + ")",
+                logWriteFunName + "(" + RP + "1, " + RP + "2, " + RP + "3, " + RP + "4, " + (createBitPattern(isGlobal,isScriptLocal,isDeclaration)) + ")",
                 getIid(),
                 name,
                 val,
@@ -544,7 +544,7 @@ if (typeof J$ === 'undefined') {
                 }
 
                 ret = replaceInExpr(
-                    logLitFunName + "(" + RP + "1, " + RP + "2, " + RP + "3," + hasGetterSetter + ", null, " + internalFunId + ")",
+                    logLitFunName + "(" + RP + "1, " + RP + "2, " + RP + "3, " + hasGetterSetter + ", null, " + internalFunId + ")",
                     getIid(),
                     ast,
                     createLiteralAst(funId),
@@ -559,14 +559,14 @@ if (typeof J$ === 'undefined') {
                     }
                 });
                 ret = replaceInExpr(
-                    logLitFunName + "(" + RP + "1, " + RP + "2, " + RP + "3," + hasGetterSetter + ", [" + objectKeys.join(', ') + "])",
+                    logLitFunName + "(" + RP + "1, " + RP + "2, " + RP + "3, " + hasGetterSetter + ", [" + objectKeys.join(', ') + "])",
                     getIid(),
                     ast,
                     createLiteralAst(funId)
                 );
             } else {
                 ret = replaceInExpr(
-                    logLitFunName + "(" + RP + "1, " + RP + "2, " + RP + "3," + hasGetterSetter + ")",
+                    logLitFunName + "(" + RP + "1, " + RP + "2, " + RP + "3, " + hasGetterSetter + ")",
                     getIid(),
                     ast,
                     createLiteralAst(funId)
@@ -689,7 +689,7 @@ if (typeof J$ === 'undefined') {
             if (!ast || ast.type.indexOf("Expression") <= 0) return ast;
             printIidToLoc(node);
             var ret = replaceInExpr(
-                logX1FunName + "(" + RP + "1," + RP + "2)", getIid(), ast);
+                logX1FunName + "(" + RP + "1, " + RP + "2)", getIid(), ast);
             transferLoc(ret, node);
             return ret;
         } else {
@@ -723,7 +723,7 @@ if (typeof J$ === 'undefined') {
         if (!Config.INSTR_UNARY || Config.INSTR_UNARY(operator, node)) {
             printOpIidToLoc(node);
             var ret = replaceInExpr(
-                logUnaryOpFunName + "(" + RP + "1," + RP + "2," + RP + "3)",
+                logUnaryOpFunName + "(" + RP + "1, " + RP + "2, " + RP + "3)",
                 getOpIid(),
                 createLiteralAst(operator),
                 argument
@@ -738,7 +738,7 @@ if (typeof J$ === 'undefined') {
         if (!Config.INSTR_BINARY || Config.INSTR_BINARY(operator, operator)) {
             printOpIidToLoc(node);
             var ret = replaceInExpr(
-                logBinaryOpFunName + "(" + RP + "1, " + RP + "2, " + RP + "3, " + RP + "4," + (createBitPattern(isComputed, false, false)) + ")",
+                logBinaryOpFunName + "(" + RP + "1, " + RP + "2, " + RP + "3, " + RP + "4, " + (createBitPattern(isComputed, false, false)) + ")",
                 getOpIid(),
                 createLiteralAst(operator),
                 left,
@@ -913,7 +913,7 @@ if (typeof J$ === 'undefined') {
 
     function createCallAsScriptEnterStatement(node) {
         printIidToLoc(node);
-        var ret = replaceInStatement(logScriptEntryFunName + "(" + RP + "1," + RP + "2, " + RP + "3)",
+        var ret = replaceInStatement(logScriptEntryFunName + "(" + RP + "1, " + RP + "2, " + RP + "3)",
             getIid(),
             createLiteralAst(instCodeFileName), createLiteralAst(origCodeFileName));
         transferLoc(ret[0].expression, node);
@@ -1002,7 +1002,7 @@ if (typeof J$ === 'undefined') {
             var ret = replaceInStatement(
                 "function n() { jalangiLabel" + l + ": while(true) { try {" + RP + "1} catch(" + JALANGI_VAR +
                 "e) { //console.log(" + JALANGI_VAR + "e); console.log(" +
-                JALANGI_VAR + "e.stack);\n  " + logUncaughtExceptionFunName + "(" + RP + "2," + JALANGI_VAR +
+                JALANGI_VAR + "e.stack);\n  " + logUncaughtExceptionFunName + "(" + RP + "2, " + JALANGI_VAR +
                 "e); } finally { if (" + logScriptExitFunName + "(" +
                 RP + "3)) { " + logLastComputedFunName + "(); continue jalangiLabel" + l + ";\n } else {\n  " + logLastComputedFunName + "(); break jalangiLabel" + l + ";\n }}\n }}", body,
                 iid1,
@@ -1027,7 +1027,7 @@ if (typeof J$ === 'undefined') {
             var ret = replaceInStatement(
                 "function n() { jalangiLabel" + l + ": while(true) { try {" + RP + "1} catch(" + JALANGI_VAR +
                 "e) { //console.log(" + JALANGI_VAR + "e); console.log(" +
-                JALANGI_VAR + "e.stack);\n " + logUncaughtExceptionFunName + "(" + RP + "2," + JALANGI_VAR +
+                JALANGI_VAR + "e.stack);\n " + logUncaughtExceptionFunName + "(" + RP + "2, " + JALANGI_VAR +
                 "e); } finally { if (" + logFunctionReturnFunName + "(" +
                 RP + "3)) continue jalangiLabel" + l + ";\n else \n  return " + logReturnAggrFunName + "();\n }\n }}", body,
                 iid1,
@@ -1339,7 +1339,7 @@ if (typeof J$ === 'undefined') {
      var name, s, i, empty = {};
      for(name in source){
      // the (!(name in empty) || empty[name] !== s) condition avoids copying properties in "source"
-     // inherited from Object.prototype.	 For example, if dest has a custom toString() method,
+     // inherited from Object.prototype.     For example, if dest has a custom toString() method,
      // don't overwrite it with the toString() method that source inherited from Object.prototype
      s = source[name];
      if(!(name in dest) || (dest[name] !== s && (!(name in empty) || empty[name] !== s))){
@@ -1351,7 +1351,7 @@ if (typeof J$ === 'undefined') {
 
      if(!src || typeof src != "object" || Object.prototype.toString.call(src) === "[object Function]"){
      // null, undefined, any non-object, or function
-     return src;	// anything
+     return src;    // anything
      }
      if(src.nodeType && "cloneNode" in src){
      // DOM Node
@@ -1359,7 +1359,7 @@ if (typeof J$ === 'undefined') {
      }
      if(src instanceof Date){
      // Date
-     return new Date(src.getTime());	// Date
+     return new Date(src.getTime());    // Date
      }
      if(src instanceof RegExp){
      // RegExp
@@ -1375,9 +1375,9 @@ if (typeof J$ === 'undefined') {
      }
      }
      // we don't clone functions for performance reasons
-     //		}else if(d.isFunction(src)){
-     //			// function
-     //			r = function(){ return src.apply(this, arguments); };
+     //     }else if(d.isFunction(src)){
+     //         // function
+     //         r = function(){ return src.apply(this, arguments); };
      }else{
      // generic objects
      try {
