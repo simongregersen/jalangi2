@@ -762,6 +762,13 @@ if (typeof J$ === 'undefined') {
         }
     }
 
+    function Sx(iid, val, sequenceLength) {
+        if (sandbox.analysis && sandbox.analysis.sequenceExpression) {
+            sandbox.analysis.sequenceExpression(iid, val, sequenceLength);
+        }
+        return val;
+    }
+
     function Le(iid) {
         
     }
@@ -889,6 +896,7 @@ if (typeof J$ === 'undefined') {
     sandbox.TCAx = TCAx; // Try catch finally exception
 
     sandbox.S = S;
+    sandbox.Sx = Sx;
 
     sandbox.EVAL_ORG = EVAL_ORG;
     sandbox.log = log;

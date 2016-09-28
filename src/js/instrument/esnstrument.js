@@ -86,6 +86,7 @@ if (typeof J$ === 'undefined') {
     var logLitFunName = JALANGI_VAR + ".T";
     var logInitFunName = JALANGI_VAR + ".N";
     var logReturnFunName = JALANGI_VAR + ".Rt";
+    var logSequenceExpressionFunName = JALANGI_VAR + ".Sx";
     var logThrowFunName = JALANGI_VAR + ".Th";
     var logReturnAggrFunName = JALANGI_VAR + ".Ra";
     var logUncaughtExceptionFunName = JALANGI_VAR + ".Ex";
@@ -587,6 +588,15 @@ if (typeof J$ === 'undefined') {
             expr || createIdentifierAst("undefined")
         );
         transferLoc(ret, lid);
+        return ret;
+    }
+
+    function wrapSequenceExpression(node) {
+        printIidToLoc(node);
+        var ret = replaceInExpr(
+            logSequenceExpressionFunName + "(" + RP + "1, " + RP + "2, " + node.expressions.length + ")",
+            getIid(), node);
+        transferLoc(ret, node);
         return ret;
     }
 
@@ -1558,7 +1568,7 @@ if (typeof J$ === 'undefined') {
             for (i = 0; i < len - 1 /* the last expression is the result, do not wrap that */; i++) {
                 node.expressions[i] = wrapWithX1(node.expressions[i], node.expressions[i]);
             }
-            return node;
+            return wrapSequenceExpression(node);
         },
         "ForInStatement": function (node) {
             node.right = wrapHash(node.right, node.right);
@@ -1596,7 +1606,6 @@ if (typeof J$ === 'undefined') {
             node.argument = wrapWithX1(node, ret);
             return node;
         },
-
         "ExpressionStatement": function (node) {
             node.expression = wrapWithX1(node, node.expression);
             return node;
