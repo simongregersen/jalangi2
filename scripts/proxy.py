@@ -1,6 +1,7 @@
 import codecs
 import hashlib
 import os
+import re
 import sys
 import inspect
 import traceback
@@ -29,6 +30,12 @@ print('Current working directory is ' + WORKING_DIR)
 jalangiArgs = ''
 useCache = True
 ignore = []
+
+html_re = re.compile('^(<!(--)?( )*doctype)|(<html)', re.I)
+
+def looks_like_html(stripped):
+    no_whitespace = stripped.strip().replace('\xef\xbb\xbf', '') # remove zero white space characters
+    return bool(re.match(html_re, no_whitespace))
 
 def processFile (flow, content, ext):
     try:
@@ -126,7 +133,7 @@ def _response(flow):
         if content_type:
             if content_type.find('javascript') >= 0:
                 flow.response.content = processFile(flow, flow.response.content, 'js')
-            if content_type.find('html') >= 0:
+            if content_type.find('html') >= 0 and looks_like_html(flow.response.content):
                 flow.response.content = processFile(flow, flow.response.content, 'html')
 
         # Disable the content security policy since it may prevent jalangi from executing
