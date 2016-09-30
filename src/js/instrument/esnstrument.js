@@ -1423,6 +1423,15 @@ if (typeof J$ === 'undefined') {
         'FunctionDeclaration': setScope,
         'FunctionExpression': setScope,
         'CatchClause': setScope,
+        "ArrayExpression": function (node) {
+            node.elements = node.elements.map(function (element) {
+                if (element === null) {
+                    return { type: "Identifier", name: "undefined" };
+                }
+                return element;
+            });
+            return node;
+        },
         "LabeledStatement": function (node) {
             if (node.body.type === 'ForInStatement') {
                 node.body.label = node.label.name;
@@ -1533,35 +1542,27 @@ if (typeof J$ === 'undefined') {
             return node;
         },
         "ObjectExpression": function (node) {
-            var ret1 = wrapLiteral(node, node, N_LOG_OBJECT_LIT);
-            return ret1;
+            return wrapLiteral(node, node, N_LOG_OBJECT_LIT);
         },
         "ArrayExpression": function (node) {
-            var ret1 = wrapLiteral(node, node, N_LOG_ARRAY_LIT);
-            return ret1;
+            return wrapLiteral(node, node, N_LOG_ARRAY_LIT);
         },
         'ThisExpression': function (node) {
-            var ret = wrapRead(node, createLiteralAst('this'), node, false, false, false);
-            return ret;
+            return wrapRead(node, createLiteralAst('this'), node, false, false, false);
         },
         'Identifier': function (node, context) {
             if (context === astUtil.CONTEXT.RHS) {
-                var ret = instrumentLoad(node, false);
-                return ret;
+                return instrumentLoad(node, false);
             } else if (context === astUtil.CONTEXT.TYPEOF) {
-                ret = instrumentLoad(node, true);
-                return ret;
-            } else {
-                return node;
+                return instrumentLoad(node, true);
             }
+            return node;
         },
         'MemberExpression': function (node, context) {
             if (context === astUtil.CONTEXT.RHS) {
-                var ret = instrumentLoad(node, false);
-                return ret;
-            } else {
-                return node;
+                return instrumentLoad(node, false);
             }
+            return node;
         },
         "SequenceExpression": function (node) {
             var i = 0, len = node.expressions.length;
