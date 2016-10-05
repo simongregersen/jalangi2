@@ -517,11 +517,13 @@
 
     // CQA: Changed for-in loop to forEach;
     // otherwise doesn't work when adding properties to Object.prototype
-    Object.getOwnPropertyNames(pluginConfigs).forEach(function (name) {
+    var names = Object.getOwnPropertyNames(pluginConfigs);
+    for (var i = 0; i < names.length; ++i) {
+      var name = names[i];
       var plugin = plugins[name]
       if (!plugin) throw new Error("Plugin '" + name + "' not found")
       plugin(this$1, pluginConfigs[name])
-    });
+    }
   };
 
   Parser.prototype.parse = function parse () {
