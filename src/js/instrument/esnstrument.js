@@ -550,29 +550,29 @@ if (typeof J$ === 'undefined') {
 
                 var internalFunId = getFnIdFromAst(decl);
                 ret = replaceInExpr(
-                    logLitFunName + "(" + RP + "1, " + decl.reference + " = " + RP + "2, " + RP + "3, " + hasGetterSetter + ", null, " + internalFunId + ")",
+                    logLitFunName + "(" + RP + "1, " + RP + "2, " + RP + "3, " + hasGetterSetter + ", null, " + internalFunId + ")",
                     getIid(),
                     ast,
                     createLiteralAst(funId),
                     internalFunId
                 );
             } else if (funId === N_LOG_OBJECT_LIT) {
-                var objectReference = null;
+                //var objectReference = null;
                 var objectKeys = [];
-                var assignments = [];
+                //var assignments = [];
                 node.properties.forEach(function (property) {
                     var key = property.key.type === 'Literal' ? property.key.raw : JSON.stringify(property.key.name);
                     if (property.kind === 'init') {
                         objectKeys.push('{ name: ' + key + ', kind: ' + JSON.stringify(property.kind) + '}');
                     } else if (property.kind === 'get' || property.kind === 'set') {
-                        if (objectReference === null) {
-                            objectReference = mkFreshVar();
-                        }
-                        assignments.push(acorn.parse(
-                            property.value.reference + " = Object.getOwnPropertyDescriptor(" + objectReference + ", \"" + property.key.name + "\")." + property.kind).body[0].expression);
+                        // if (objectReference === null) {
+                        //     objectReference = mkFreshVar();
+                        // }
+                        // assignments.push(acorn.parse(
+                        //     property.value.reference + " = Object.getOwnPropertyDescriptor(" + objectReference + ", \"" + property.key.name + "\")." + property.kind).body[0].expression);
                     }
                 });
-                if (assignments.length) {
+                /*if (assignments.length) {
                     ast = {
                         type: 'SequenceExpression',
                         expressions: [
@@ -581,7 +581,7 @@ if (typeof J$ === 'undefined') {
                     };
                     Array.prototype.push.apply(ast.expressions, assignments);
                     ast.expressions.push({ type: 'Identifier', name: objectReference });
-                }
+                }*/
                 ret = replaceInExpr(
                     logLitFunName + "(" + RP + "1, " + RP + "2, " + RP + "3, " + hasGetterSetter + ", [" + objectKeys.join(', ') + "])",
                     getIid(),
@@ -937,7 +937,7 @@ if (typeof J$ === 'undefined') {
     function createCallAsFunEnterStatement(node) {
         printIidToLoc(node);
         var ret = replaceInStatement(
-            logFunctionEnterFunName + "(" + RP + "1, " + node.reference + ", this, arguments)",
+            logFunctionEnterFunName + "(" + RP + "1, " + (node.kind === 'get' || node.kind === 'set' ? "arguments.callee" : node.id.name) + ", this, arguments)",
             getIid()
         );
         transferLoc(ret[0].expression, node);
@@ -1848,7 +1848,6 @@ if (typeof J$ === 'undefined') {
                     node.strictMode = true;
                 }
                 oldScope.addVar(node.id.name, "defun", node.loc, node);
-                oldScope.addVar(node.reference = mkFreshVar(), "tmp");
                 MAP(node.params, function (param) {
                     if (param.name === fromName) {         // rename arguments to J$_arguments
                         param.name = toName;
@@ -1865,8 +1864,9 @@ if (typeof J$ === 'undefined') {
                 }
                 if (node.id !== null) {
                     currentScope.addVar(node.id.name, "lambda");
+                } else if (node.kind !== 'get' && node.kind !== 'set') {
+                    node.id = { type: 'Identifier', name: mkFreshVar() };
                 }
-                oldScope.addVar(node.reference = mkFreshVar(), "tmp");
                 MAP(node.params, function (param) {
                     if (param.name === fromName) {         // rename arguments to J$_arguments
                         param.name = toName;
@@ -1896,6 +1896,13 @@ if (typeof J$ === 'undefined') {
             'Program': handleFun,
             'FunctionDeclaration': handleFun,
             'FunctionExpression': handleFun,
+            'ObjectExpression': function (node) {
+                node.properties.forEach(function (property) {
+                    if (property.kind === 'get' || property.kind === 'set') {
+                        property.value.kind = 'get';
+                    }
+                });
+            },
             'VariableDeclarator': handleVar,
             'CatchClause': handleCatch
         };
@@ -1956,10 +1963,10 @@ if (typeof J$ === 'undefined') {
                     var assignStmt;
                     if (ast.body[i].body === null) {
                         assignStmt = acorn.parse(
-                            "var " + name + ' = ' + ast.body[i].reference + " = function " + name + "(" + params + ") {}").body;
+                            "var " + name + " = function " + name + "(" + params + ") {}").body;
                     } else {
                         assignStmt = replaceInStatement(
-                            "var " + name + ' = ' + ast.body[i].reference + " = function " + name + "(" + params + ") { " + RP + "1 }",
+                            "var " + name + " = function " + name + "(" + params + ") { " + RP + "1 }",
                             ast.body[i].body.body);
                     }
                     newBody.push(assignStmt[0]);
