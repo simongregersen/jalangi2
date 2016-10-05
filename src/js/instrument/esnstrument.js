@@ -174,7 +174,7 @@ if (typeof J$ === 'undefined') {
     var nxtFreshVar = 1;
 
     function mkFreshVar() {
-        return "J$__f" + nxtFreshVar++;
+        return "J$__v" + nxtFreshVar++;
     }
 
     function getIid() {
@@ -557,13 +557,31 @@ if (typeof J$ === 'undefined') {
                     internalFunId
                 );
             } else if (funId === N_LOG_OBJECT_LIT) {
+                var objectReference = null;
                 var objectKeys = [];
+                var assignments = [];
                 node.properties.forEach(function (property) {
                     var key = property.key.type === 'Literal' ? property.key.raw : JSON.stringify(property.key.name);
                     if (property.kind === 'init') {
                         objectKeys.push('{ name: ' + key + ', kind: ' + JSON.stringify(property.kind) + '}');
+                    } else if (property.kind === 'get' || property.kind === 'set') {
+                        if (objectReference === null) {
+                            objectReference = mkFreshVar();
+                        }
+                        assignments.push(acorn.parse(
+                            property.value.reference + " = Object.getOwnPropertyDescriptor(" + objectReference + ", \"" + property.key.name + "\")." + property.kind).body[0].expression);
                     }
                 });
+                if (assignments.length) {
+                    ast = {
+                        type: 'SequenceExpression',
+                        expressions: [
+                            replaceInExpr(objectReference + " = " + RP + "1", ast)
+                        ]
+                    };
+                    Array.prototype.push.apply(ast.expressions, assignments);
+                    ast.expressions.push({ type: 'Identifier', name: objectReference });
+                }
                 ret = replaceInExpr(
                     logLitFunName + "(" + RP + "1, " + RP + "2, " + RP + "3, " + hasGetterSetter + ", [" + objectKeys.join(', ') + "])",
                     getIid(),
