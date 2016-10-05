@@ -936,8 +936,16 @@ if (typeof J$ === 'undefined') {
 
     function createCallAsFunEnterStatement(node) {
         printIidToLoc(node);
+        var callee;
+        if (node.kind === 'get' || node.kind === 'set') {
+            callee = 'arguments.callee';
+        } else if (node.scope.vars[node.id.name] === 'arg' || node.scope.vars[node.id.name] === 'var') {
+            callee = node.reference = mkFreshVar();
+        } else {
+            callee = node.id.name;
+        }
         var ret = replaceInStatement(
-            logFunctionEnterFunName + "(" + RP + "1, " + (node.kind === 'get' || node.kind === 'set' ? "arguments.callee" : node.id.name) + ", this, arguments)",
+            logFunctionEnterFunName + "(" + RP + "1, " + callee + ", this, arguments)",
             getIid()
         );
         transferLoc(ret[0].expression, node);
@@ -1963,10 +1971,10 @@ if (typeof J$ === 'undefined') {
                     var assignStmt;
                     if (ast.body[i].body === null) {
                         assignStmt = acorn.parse(
-                            "var " + name + " = function " + name + "(" + params + ") {}").body;
+                            "var " + name + " = function " + (ast.body[i].reference || name) + "(" + params + ") {}").body;
                     } else {
                         assignStmt = replaceInStatement(
-                            "var " + name + " = function " + name + "(" + params + ") { " + RP + "1 }",
+                            "var " + name + " = function " + (ast.body[i].reference || name) + "(" + params + ") { " + RP + "1 }",
                             ast.body[i].body.body);
                     }
                     newBody.push(assignStmt[0]);
