@@ -171,7 +171,11 @@ if (typeof J$ === 'undefined') {
     var origCodeFileName;
     var instCodeFileName;
     var iidSourceInfo;
+    var nxtFreshVar = 1;
 
+    function mkFreshVar() {
+        return "J$__f" + nxtFreshVar++;
+    }
 
     function getIid() {
         var tmpIid = memIid;
@@ -238,11 +242,13 @@ if (typeof J$ === 'undefined') {
         var visitorReplaceInExpr = {
             'Identifier': function (node) {
                 if (node.name.indexOf(RP) === 0) {
-                    var i = parseInt(node.name.substring(RP.length));
-                    return asts[i];
-                } else {
-                    return node;
+                    var remaining = node.name.substring(RP.length);
+                    if (!isNaN(remaining)) {
+                        var i = parseInt(node.name.substring(RP.length));
+                        return asts[i];
+                    }
                 }
+                return node;
             },
             'BlockStatement': function (node) {
                 if (node.body[0].type === 'ExpressionStatement' && isArr(node.body[0].expression)) {
@@ -534,18 +540,23 @@ if (typeof J$ === 'undefined') {
 
             var ret;
             if (funId == N_LOG_FUNCTION_LIT) {
-                var internalFunId = null;
-                if (node.type == 'FunctionExpression') {
-                    internalFunId = getFnIdFromAst(node);
-                } else {
+                var decl = node;
+                if (node.type !== 'FunctionExpression') {
                     if (node.type != 'Identifier') {
                         throw new Error("IllegalStateException");
                     }
-                    internalFunId = getFnIdFromAst(scope.funNodes[node.name]);
+                    decl = scope.funNodes[node.name];
+                }
+
+                var expr = null, internalFunId = getFnIdFromAst(decl);
+                if (node.type === 'FunctionExpression' && node.strictMode) {
+                    expr = logLitFunName + "(" + RP + "1, " + decl.reference + " = " + RP + "2, " + RP + "3, " + hasGetterSetter + ", null, " + internalFunId + ")";
+                } else {
+                    expr = logLitFunName + "(" + RP + "1, " + RP + "2, " + RP + "3, " + hasGetterSetter + ", null, " + internalFunId + ")";
                 }
 
                 ret = replaceInExpr(
-                    logLitFunName + "(" + RP + "1, " + RP + "2, " + RP + "3, " + hasGetterSetter + ", null, " + internalFunId + ")",
+                    expr,
                     getIid(),
                     ast,
                     createLiteralAst(funId),
@@ -914,7 +925,7 @@ if (typeof J$ === 'undefined') {
     function createCallAsFunEnterStatement(node) {
         printIidToLoc(node);
         var ret = replaceInStatement(
-            logFunctionEnterFunName + "(" + RP + "1,arguments.callee, this, arguments)",
+            logFunctionEnterFunName + "(" + RP + "1, " + (node.strictMode ? node.reference : "arguments.callee") + ", this, arguments)",
             getIid()
         );
         transferLoc(ret[0].expression, node);
@@ -1059,10 +1070,11 @@ if (typeof J$ === 'undefined') {
             if (!Config.INSTR_TRY_CATCH_ARGUMENTS || Config.INSTR_TRY_CATCH_ARGUMENTS(node)) {
                 if (!Config.INSTR_INIT || Config.INSTR_INIT(node)) {
                     ident = createIdentifierAst("arguments");
+                    var isAssign = !node.strictMode;
                     ret = ret.concat(createCallInitAsStatement(node,
                         createLiteralAst("arguments"),
                         ident,
-                        true, ident, false, true, true, false));
+                        true, ident, false, isAssign, true, false));
                 }
             }
         }
@@ -1112,15 +1124,24 @@ if (typeof J$ === 'undefined') {
                                     false, undefined, false, false, true, false));
                             }
                         }
+                        if (scope.vars[name] === "tmp") {
+                            ret.push({
+                                type: 'VariableDeclaration',
+                                kind: 'var',
+                                declarations: [{
+                                    type: 'VariableDeclarator',
+                                    id: { type: 'Identifier', name: name },
+                                    init: null
+                                }]
+                            });
+                        }
                     }
                 }
         }
         return ret;
     }
 
-
     var scope;
-
 
     function instrumentFunctionEntryExit(node, ast) {
         var body;
@@ -1129,13 +1150,8 @@ if (typeof J$ === 'undefined') {
         } else {
             body = [];
         }
-        body = body.concat(syncDefuns(node, scope, false)).concat(ast);
-        return body;
+        return body.concat(syncDefuns(node, scope, false)).concat(ast);
     }
-
-//    function instrumentFunctionEntryExit(node, ast) {
-//        return wrapFunBodyWithTryCatch(node, ast);
-//    }
 
     /**
      * instruments entry of a script.  Adds the script entry (J$.Se) callback,
@@ -1536,7 +1552,6 @@ if (typeof J$ === 'undefined') {
             return ret1;
         },
         "FunctionDeclaration": function (node) {
-            //console.log(node.body.body);
             node.body.body = instrumentFunctionEntryExit(node, node.body.body);
             scope = scope.parent;
             return node;
@@ -1689,10 +1704,28 @@ if (typeof J$ === 'undefined') {
         },
         "FunctionExpression": function (node) {
             node.body.body = wrapFunBodyWithTryCatch(node, node.body.body);
+            if (node.strictMode) {
+                node.body.body.unshift({
+                    type: 'ExpressionStatement',
+                    expression: {
+                        type: 'Literal',
+                        value: 'use strict'
+                    }
+                });
+            }
             return node;
         },
         "FunctionDeclaration": function (node) {
             node.body.body = wrapFunBodyWithTryCatch(node, node.body.body);
+            if (node.strictMode) {
+                node.body.body.unshift({
+                    type: 'ExpressionStatement',
+                    expression: {
+                        type: 'Literal',
+                        value: 'use strict'
+                    }
+                });
+            }
             return node;
         },
         "WithStatement": function (node) {
@@ -1707,7 +1740,6 @@ if (typeof J$ === 'undefined') {
     };
 
     function addScopes(ast) {
-
         function Scope(parent, isCatch) {
             this.vars = {};
             this.funLocs = {};
@@ -1723,7 +1755,6 @@ if (typeof J$ === 'undefined') {
             if (this.isCatch && type !== 'catch') {
                 tmpScope = this.parent;
             }
-
             if (tmpScope.vars[name] !== 'arg') {
                 tmpScope.vars[name] = type;
             }
@@ -1796,7 +1827,17 @@ if (typeof J$ === 'undefined') {
             var oldScope = currentScope;
             currentScope = new Scope(currentScope);
             node.scope = currentScope;
+
             if (node.type === 'FunctionDeclaration') {
+                var body = node.body.body;
+                if (body.length > 0 && body[0].type === 'ExpressionStatement' &&
+                        body[0].expression.type === 'Literal' &&
+                        typeof body[0].expression.value === 'string' &&
+                        body[0].expression.value.toLowerCase() === 'use strict') {
+                    node.strictMode = true;
+                    node.reference = mkFreshVar();
+                    oldScope.addVar(node.reference, "tmp");
+                }
                 oldScope.addVar(node.id.name, "defun", node.loc, node);
                 MAP(node.params, function (param) {
                     if (param.name === fromName) {         // rename arguments to J$_arguments
@@ -1805,6 +1846,15 @@ if (typeof J$ === 'undefined') {
                     currentScope.addVar(param.name, "arg");
                 });
             } else if (node.type === 'FunctionExpression') {
+                var body = node.body.body;
+                if (body.length > 0 && body[0].type === 'ExpressionStatement' &&
+                        body[0].expression.type === 'Literal' &&
+                        typeof body[0].expression.value === 'string' &&
+                        body[0].expression.value.toLowerCase() === 'use strict') {
+                    node.strictMode = true;
+                    node.reference = mkFreshVar();
+                    oldScope.addVar(node.reference, "tmp");
+                }
                 if (node.id !== null) {
                     currentScope.addVar(node.id.name, "lambda");
                 }
@@ -1895,12 +1945,13 @@ if (typeof J$ === 'undefined') {
                     var name = ast.body[i].id.name;
                     var params = ast.body[i].params.map(function (param) { return param.name; }).join(', ');
                     var assignStmt;
+                    var strictModeAssignment = ast.body[i].strictMode ? ' = ' + ast.body[i].reference : '';
                     if (ast.body[i].body === null) {
                         assignStmt = acorn.parse(
-                            "var " + name + " = function " + name + "(" + params + ") {}").body;
+                            "var " + name + strictModeAssignment + " = function " + name + "(" + params + ") {}").body;
                     } else {
                         assignStmt = replaceInStatement(
-                            "var " + name + " = function " + name + "(" + params + ") { " + RP + "1 }",
+                            "var " + name + strictModeAssignment + " = function " + name + "(" + params + ") { " + RP + "1 }",
                             ast.body[i].body.body);
                     }
                     newBody.push(assignStmt[0]);
@@ -1918,14 +1969,11 @@ if (typeof J$ === 'undefined') {
                 ast.body.pop();
             }
             Array.prototype.push.apply(ast.body, newBody);
-        } else {
-            //console.log(typeof ast.body);
         }
         for (key in ast) {
             if (ast.hasOwnProperty(key)) {
                 child = ast[key];
-                if (typeof child === 'object' && child !== null && key !==
-                    "scope") {
+                if (typeof child === 'object' && child !== null && key !== "scope") {
                     hoistFunctionDeclaration(child, hoisteredFunctions);
                 }
 
