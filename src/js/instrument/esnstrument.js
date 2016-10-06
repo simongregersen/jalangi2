@@ -173,8 +173,12 @@ if (typeof J$ === 'undefined') {
     var iidSourceInfo;
     var nxtFreshVar = 1;
 
-    function mkFreshVar() {
-        return "J$__v" + nxtFreshVar++;
+    function mkFreshVar(scope) {
+        var name = "J$__v" + nxtFreshVar++
+        if (scope) {
+            scope.addVar(name, "tmp");
+        }
+        return name;
     }
 
     function getIid() {
@@ -557,31 +561,34 @@ if (typeof J$ === 'undefined') {
                     internalFunId
                 );
             } else if (funId === N_LOG_OBJECT_LIT) {
-                //var objectReference = null;
                 var objectKeys = [];
-                //var assignments = [];
-                node.properties.forEach(function (property) {
-                    var key = property.key.type === 'Literal' ? property.key.raw : JSON.stringify(property.key.name);
+                var operations = [];
+                var properties = node.properties.filter(function (property) {
                     if (property.kind === 'init') {
+                        var key = property.key.type === 'Literal' ? property.key.raw : JSON.stringify(property.key.name);
                         objectKeys.push('{ name: ' + key + ', kind: ' + JSON.stringify(property.kind) + '}');
                     } else if (property.kind === 'get' || property.kind === 'set') {
-                        // if (objectReference === null) {
-                        //     objectReference = mkFreshVar();
-                        // }
-                        // assignments.push(acorn.parse(
-                        //     property.value.reference + " = Object.getOwnPropertyDescriptor(" + objectReference + ", \"" + property.key.name + "\")." + property.kind).body[0].expression);
+                        var method = property.kind === "get" ? "dG" : "dS";
+                        operations.push(replaceInExpr(
+                            "J$." + method + "(" + node.reference + ", " + JSON.stringify(property.key.name) + ", " + RP + "1)",
+                            property.value));
+                        return false;
                     }
+                    return true;
                 });
-                /*if (assignments.length) {
+                if (operations.length) {
                     ast = {
                         type: 'SequenceExpression',
                         expressions: [
-                            replaceInExpr(objectReference + " = " + RP + "1", ast)
+                            replaceInExpr(node.reference + " = " + RP + "1", {
+                                type: 'ObjectExpression',
+                                properties: properties
+                            })
                         ]
                     };
-                    Array.prototype.push.apply(ast.expressions, assignments);
-                    ast.expressions.push({ type: 'Identifier', name: objectReference });
-                }*/
+                    Array.prototype.push.apply(ast.expressions, operations);
+                    ast.expressions.push({ type: 'Identifier', name: node.reference });
+                }
                 ret = replaceInExpr(
                     logLitFunName + "(" + RP + "1, " + RP + "2, " + RP + "3, " + hasGetterSetter + ", [" + objectKeys.join(', ') + "])",
                     getIid(),
@@ -937,9 +944,7 @@ if (typeof J$ === 'undefined') {
     function createCallAsFunEnterStatement(node) {
         printIidToLoc(node);
         var callee;
-        if (node.kind === 'get' || node.kind === 'set') {
-            callee = 'arguments.callee';
-        } else if (node.scope.vars[node.id.name] === 'arg' || node.scope.vars[node.id.name] === 'var') {
+        if (node.scope.vars[node.id.name] === 'arg' || node.scope.vars[node.id.name] === 'var') {
             callee = node.reference = mkFreshVar();
         } else {
             callee = node.id.name;
@@ -1065,12 +1070,18 @@ if (typeof J$ === 'undefined') {
             var iid1 = getIid();
             printIidToLoc(node);
             var l = labelCounter++;
+            var callee;
+            if (node.scope.vars[node.id.name] === 'arg' || node.scope.vars[node.id.name] === 'var') {
+                callee = node.reference = node.reference || mkFreshVar();
+            } else {
+                callee = node.id.name;
+            }
             var ret = replaceInStatement(
                 "function n() { jalangiLabel" + l + ": while(true) { try {" + RP + "1} catch(" + JALANGI_VAR +
                 "e) { //console.log(" + JALANGI_VAR + "e); console.log(" +
                 JALANGI_VAR + "e.stack);\n " + logUncaughtExceptionFunName + "(" + RP + "2, " + JALANGI_VAR +
                 "e); } finally { if (" + logFunctionReturnFunName + "(" +
-                RP + "3)) continue jalangiLabel" + l + ";\n else \n  return " + logReturnAggrFunName + "();\n }\n }}", body,
+                RP + "3, " + callee + ")) continue jalangiLabel" + l + ";\n else \n  return " + logReturnAggrFunName + "();\n }\n }}", body,
                 iid1,
                 getIid()
             );
@@ -1368,8 +1379,7 @@ if (typeof J$ === 'undefined') {
     }
 
     function clone(src) {
-        var ret = JSON.parse(JSON.stringify(src, JSONStringifyHandler), JSONParseHandler);
-        return ret;
+        return JSON.parse(JSON.stringify(src, JSONStringifyHandler), JSONParseHandler);
     }
 
     /*
@@ -1560,6 +1570,9 @@ if (typeof J$ === 'undefined') {
             return ret1;
         },
         "FunctionExpression": function (node, context) {
+            if (!node.id) {
+                node.id = { type: 'Literal', name: mkFreshVar(), isSynthetic: true };
+            }
             node.body.body = instrumentFunctionEntryExit(node, node.body.body);
             var ret1;
             if (context === astUtil.CONTEXT.GETTER || context === astUtil.CONTEXT.SETTER) {
@@ -1870,10 +1883,8 @@ if (typeof J$ === 'undefined') {
                         body[0].expression.value.toLowerCase() === 'use strict') {
                     node.strictMode = true;
                 }
-                if (node.id !== null) {
+                if (node.id !== null && !node.id.isSynthetic) {
                     currentScope.addVar(node.id.name, "lambda");
-                } else if (node.kind !== 'get' && node.kind !== 'set') {
-                    node.id = { type: 'Identifier', name: mkFreshVar() };
                 }
                 MAP(node.params, function (param) {
                     if (param.name === fromName) {         // rename arguments to J$_arguments
@@ -1905,9 +1916,11 @@ if (typeof J$ === 'undefined') {
             'FunctionDeclaration': handleFun,
             'FunctionExpression': handleFun,
             'ObjectExpression': function (node) {
-                node.properties.forEach(function (property) {
+                node.properties.some(function (property) {
                     if (property.kind === 'get' || property.kind === 'set') {
-                        property.value.kind = 'get';
+                        // We need a local variable for the object to call __defineGetter__/__defineSetter__
+                        node.reference = mkFreshVar(currentScope);
+                        return true;
                     }
                 });
             },

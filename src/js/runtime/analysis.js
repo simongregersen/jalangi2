@@ -245,7 +245,7 @@ if (typeof J$ === 'undefined') {
 
     var hasGetOwnPropertyDescriptor = typeof Object.getOwnPropertyDescriptor === 'function';
     // object/function/regexp/array Literal
-    function T(iid, val, type, hasGetterSetter, objectKeys, internalIid) {
+    function T(iid, val, type, hasGetterSetter, objectKeys, internalIid, isGetterSetter) {
         var aret;
         associateSidWithFunction(val, internalIid);
         if (hasGetterSetter) {
@@ -254,17 +254,17 @@ if (typeof J$ === 'undefined') {
                     var desc = Object.getOwnPropertyDescriptor(val, offset);
                     if (desc !== undefined) {
                         if (typeof desc.get === 'function') {
-                            T(iid, desc.get, 12, false, internalIid);
+                            T(iid, desc.get, 12, false, null, internalIid, true);
                         }
                         if (typeof desc.set === 'function') {
-                            T(iid, desc.set, 12, false, internalIid);
+                            T(iid, desc.set, 12, false, null, internalIid, true);
                         }
                     }
                 }
             }
         }
         if (sandbox.analysis && sandbox.analysis.literal) {
-            aret = sandbox.analysis.literal(iid, val, hasGetterSetter, objectKeys);
+            aret = sandbox.analysis.literal(iid, val, hasGetterSetter, isGetterSetter, objectKeys);
             if (aret) {
                 val = aret.result;
             }
@@ -459,12 +459,12 @@ if (typeof J$ === 'undefined') {
     }
 
     // Function exit
-    function Fr(iid) {
+    function Fr(iid, f) {
         var isBacktrack = false, tmp, aret, returnVal;
 
         returnVal = returnStack.pop();
         if (sandbox.analysis && sandbox.analysis.functionExit) {
-            aret = sandbox.analysis.functionExit(iid, returnVal, wrappedExceptionVal);
+            aret = sandbox.analysis.functionExit(iid, f, returnVal, wrappedExceptionVal);
             if (aret) {
                 returnVal = aret.returnVal;
                 wrappedExceptionVal = aret.wrappedExceptionVal;
@@ -898,7 +898,19 @@ if (typeof J$ === 'undefined') {
     sandbox.S = S;
     sandbox.Sx = Sx;
 
+    sandbox.dG = function (base, offset, val) {
+        val[J$.funName] = "get " + offset;
+        base.__defineGetter__(offset, val);
+    };
+
+    sandbox.dS = function (base, offset, val) {
+        val[J$.funName] = "set " + offset;
+        base.__defineSetter__(offset, val);
+    };
+
     sandbox.EVAL_ORG = EVAL_ORG;
     sandbox.log = log;
+
+    sandbox.funName = Symbol();
 })(J$);
 
