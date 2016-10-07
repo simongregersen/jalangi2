@@ -554,7 +554,7 @@ if (typeof J$ === 'undefined') {
 
                 var internalFunId = getFnIdFromAst(decl);
                 ret = replaceInExpr(
-                    logLitFunName + "(" + RP + "1, " + RP + "2, " + RP + "3, " + hasGetterSetter + ", null, " + internalFunId + ")",
+                    logLitFunName + "(" + RP + "1, " + RP + "2, " + RP + "3, " + hasGetterSetter + ", null, " + internalFunId + ", " + createBitPattern(decl.scope.strictMode) + ")",
                     getIid(),
                     ast,
                     createLiteralAst(funId),
@@ -1736,7 +1736,7 @@ if (typeof J$ === 'undefined') {
         },
         "FunctionExpression": function (node) {
             node.body.body = wrapFunBodyWithTryCatch(node, node.body.body);
-            if (node.strictMode) {
+            if (node.scope.strictMode) {
                 node.body.body.unshift({
                     type: 'ExpressionStatement',
                     expression: {
@@ -1749,7 +1749,7 @@ if (typeof J$ === 'undefined') {
         },
         "FunctionDeclaration": function (node) {
             node.body.body = wrapFunBodyWithTryCatch(node, node.body.body);
-            if (node.strictMode) {
+            if (node.scope.strictMode) {
                 node.body.body.unshift({
                     type: 'ExpressionStatement',
                     expression: {
@@ -1780,6 +1780,7 @@ if (typeof J$ === 'undefined') {
             this.hasArguments = false;
             this.parent = parent;
             this.isCatch = isCatch;
+            this.strictMode = parent !== null && parent.strictMode;
         }
 
         Scope.prototype.addVar = function (name, type, loc, node) {
@@ -1866,7 +1867,7 @@ if (typeof J$ === 'undefined') {
                         body[0].expression.type === 'Literal' &&
                         typeof body[0].expression.value === 'string' &&
                         body[0].expression.value.toLowerCase() === 'use strict') {
-                    node.strictMode = true;
+                    currentScope.strictMode = true;
                 }
                 oldScope.addVar(node.id.name, "defun", node.loc, node);
                 MAP(node.params, function (param) {
@@ -1881,7 +1882,7 @@ if (typeof J$ === 'undefined') {
                         body[0].expression.type === 'Literal' &&
                         typeof body[0].expression.value === 'string' &&
                         body[0].expression.value.toLowerCase() === 'use strict') {
-                    node.strictMode = true;
+                    currentScope.strictMode = true;
                 }
                 if (node.id !== null && !node.id.isSynthetic) {
                     currentScope.addVar(node.id.name, "lambda");

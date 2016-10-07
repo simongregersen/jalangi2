@@ -224,7 +224,7 @@ if (typeof J$ === 'undefined') {
     function F(iid, f, flags) {
         var bFlags = decodeBitPattern(flags, 1); // [isConstructor]
         return function () {
-            var base = this;
+            var base = f && f[J$.strictMode] ? undefined : this;
             return (lastComputedValue = invokeFun(iid, base, f, arguments, bFlags[0], false));
         }
     }
@@ -245,7 +245,7 @@ if (typeof J$ === 'undefined') {
 
     var hasGetOwnPropertyDescriptor = typeof Object.getOwnPropertyDescriptor === 'function';
     // object/function/regexp/array Literal
-    function T(iid, val, type, hasGetterSetter, objectKeys, internalIid, isGetter, isSetter) {
+    function T(iid, val, type, hasGetterSetter, objectKeys, internalIid, flags, isGetter, isSetter) {
         var aret;
         associateSidWithFunction(val, internalIid);
         if (hasGetterSetter) {
@@ -254,16 +254,23 @@ if (typeof J$ === 'undefined') {
                     var desc = Object.getOwnPropertyDescriptor(val, offset);
                     if (desc !== undefined) {
                         if (typeof desc.get === 'function') {
-                            T(iid, desc.get, 12, false, null, internalIid, true, false);
+                            T(iid, desc.get, 12, false, null, internalIid, flags, true, false);
                         }
                         if (typeof desc.set === 'function') {
-                            T(iid, desc.set, 12, false, null, internalIid, false, true);
+                            T(iid, desc.set, 12, false, null, internalIid, flags, false, true);
                         }
                     }
                 }
             }
         }
         if (sandbox.analysis && sandbox.analysis.literal) {
+            var bFlags = null;
+            if (flags) {
+                bFlags = decodeBitPattern(flags, 1);
+                if (bFlags[0]) {
+                    val[J$.strictMode] = true;
+                }
+            }
             aret = sandbox.analysis.literal(iid, val, hasGetterSetter, isGetter, isSetter, objectKeys);
             if (aret) {
                 val = aret.result;
@@ -912,5 +919,6 @@ if (typeof J$ === 'undefined') {
     sandbox.log = log;
 
     sandbox.funName = Symbol();
+    sandbox.strictMode = Symbol();
 })(J$);
 
