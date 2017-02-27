@@ -1661,6 +1661,12 @@ if (typeof J$ === 'undefined') {
     };
 
     function funCond(node) {
+        if (!node.test) {
+            // If test is omitted (e.g., for(;;)) then change it to the literal true
+            // such that the Jalangi conditional hook will be invoked.
+            node.test = { type: 'Literal', value: true, raw: 'true' };
+        }
+
         node.test = wrapConditional(node.test, node.type);
         node.test = wrapWithX1(node, node.test);
         node.init = wrapWithX1(node, node.init);
