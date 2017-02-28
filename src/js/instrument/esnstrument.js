@@ -1664,7 +1664,8 @@ if (typeof J$ === 'undefined') {
         if (!node.test) {
             // If test is omitted (e.g., for(;;)) then change it to the literal true
             // such that the Jalangi conditional hook will be invoked.
-            node.test = { type: 'Literal', value: true, raw: 'true' };
+            var literal = { type: 'Literal', value: true, raw: 'true' };
+            node.test = wrapLiteral(literal, literal, N_LOG_BOOLEAN_LIT);
         }
 
         node.test = wrapConditional(node.test, node.type);
