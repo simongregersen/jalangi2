@@ -165,16 +165,24 @@ if (typeof J$ === 'undefined') {
     function invokeFunctionDecl(base, f, args, iid) {
         // Invoke with the original parameters to preserve exceptional behavior if input is invalid
         f.apply(base, args);
+        
         // Otherwise input is valid, so instrument and invoke via eval
-        var newArgs = [];
-        for (var i = 0; i < args.length-1; i++) {
-            newArgs[i] = args[i];
+        var offset = 0;
+
+        if (f === Function.prototype.apply) {
+            args = args[1];
+        } else if (f === Function.prototype.call) {
+            offset = 1;
         }
-        var code = '(function(' + newArgs.join(', ') + ') { ' + args[args.length-1] + ' })';
-        var code = sandbox.instrumentEvalCode(code, iid, false);
+
+        var formals = [];
+        for (var i = 0 + offset; i < args.length-1; i++) {
+            formals[i - offset] = args[i];
+        }
+        var body = args[args.length-1];
+
         // Using EVAL_ORG instead of eval() is important as it preserves the scoping semantics of Function()
-        var out = EVAL_ORG(code);
-        return out;
+        return EVAL_ORG(sandbox.instrumentEvalCode('(function (' + formals.join(', ') + ') { ' + body + ' })', iid, false));
     }
 
     function callFun(f, base, args, isConstructor, iid) {
@@ -183,7 +191,7 @@ if (typeof J$ === 'undefined') {
         try {
             if (f === EVAL_ORG) {
                 result = invokeEval(base, f, args, iid);
-            } else if (f === Function) {
+            } else if (f === Function || (base === Function && (f === Function.prototype.apply || f === Function.prototype.call))) {
                 result = invokeFunctionDecl(base, f, args, iid);
             } else if (isConstructor) {
                 result = callAsConstructor(f, args);
