@@ -516,11 +516,15 @@ if (typeof J$ === 'undefined') {
 
     function getFnIdFromAst(ast) {
         var entryExpr = ast.body.body[0];
-        if (entryExpr.type != 'ExpressionStatement') {
-            console.log(JSON.stringify(entryExpr));
-            throw new Error("IllegalStateException");
+        if (entryExpr.type === 'VariableDeclaration' && entryExpr.declarations[0].init.type === 'CallExpression') {
+            entryExpr = entryExpr.declarations[0].init;
+        } else {
+            if (entryExpr.type != 'ExpressionStatement') {
+                console.log(JSON.stringify(entryExpr));
+                throw new Error("IllegalStateException");
+            }
+            entryExpr = entryExpr.expression;
         }
-        entryExpr = entryExpr.expression;
         if (entryExpr.type != 'CallExpression') {
             throw new Error("IllegalStateException");
         }
@@ -943,17 +947,21 @@ if (typeof J$ === 'undefined') {
 
     function createCallAsFunEnterStatement(node) {
         printIidToLoc(node);
+
+        node.currentFunctionVar = mkFreshVar();
+
         var callee;
         if (node.scope.vars[node.id.name] === 'arg' || node.scope.vars[node.id.name] === 'var') {
             callee = node.reference = mkFreshVar();
         } else {
             callee = node.id.name;
         }
+
         var ret = replaceInStatement(
-            logFunctionEnterFunName + "(" + RP + "1, " + callee + ", this, arguments)",
+            "var " + node.currentFunctionVar + " = " + logFunctionEnterFunName + "(" + RP + "1, " + callee + ", this, arguments)",
             getIid()
         );
-        transferLoc(ret[0].expression, node);
+        transferLoc(ret[0].declarations[0].init, node);
         return ret;
     }
 
@@ -1070,18 +1078,12 @@ if (typeof J$ === 'undefined') {
             var iid1 = getIid();
             printIidToLoc(node);
             var l = labelCounter++;
-            var callee;
-            if (node.scope.vars[node.id.name] === 'arg' || node.scope.vars[node.id.name] === 'var') {
-                callee = node.reference = node.reference || mkFreshVar();
-            } else {
-                callee = node.id.name;
-            }
             var ret = replaceInStatement(
                 "function n() { jalangiLabel" + l + ": while(true) { try {" + RP + "1} catch(" + JALANGI_VAR +
                 "e) { //console.log(" + JALANGI_VAR + "e); console.log(" +
                 JALANGI_VAR + "e.stack);\n " + logUncaughtExceptionFunName + "(" + RP + "2, " + JALANGI_VAR +
                 "e); } finally { if (" + logFunctionReturnFunName + "(" +
-                RP + "3, " + callee + ")) continue jalangiLabel" + l + ";\n else \n  return " + logReturnAggrFunName + "();\n }\n }}", body,
+                RP + "3, " + node.currentFunctionVar + ")) continue jalangiLabel" + l + ";\n else \n  return " + logReturnAggrFunName + "();\n }\n }}", body,
                 iid1,
                 getIid()
             );

@@ -51,7 +51,6 @@ if (typeof J$ === 'undefined') {
     var SPECIAL_PROP_SID = sandbox.Constants.SPECIAL_PROP_SID;
     var SPECIAL_PROP_IID = sandbox.Constants.SPECIAL_PROP_IID;
 
-
     function decodeBitPattern(i, len) {
         var ret = new Array(len);
         for (var j=0; j<len; j++) {
@@ -464,6 +463,10 @@ if (typeof J$ === 'undefined') {
 
     // Function enter
     function Fe(iid, f, dis /* this */, args) {
+        if (typeof sandbox.cf === 'function') {
+            f = sandbox.cf;
+            sandbox.cf = null;
+        }
         argIndex = 0;
         returnStack.push(undefined);
         wrappedExceptionVal = undefined;
@@ -471,6 +474,7 @@ if (typeof J$ === 'undefined') {
         if (sandbox.analysis && sandbox.analysis.functionEnter) {
             sandbox.analysis.functionEnter(iid, f, dis, args);
         }
+        return f;
     }
 
     // Function exit
@@ -928,5 +932,6 @@ if (typeof J$ === 'undefined') {
 
     sandbox.funName = Symbol();
     sandbox.strictMode = Symbol();
-})(J$);
 
+    sandbox.cf = null; // current function
+})(J$);
