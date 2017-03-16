@@ -208,11 +208,16 @@ if (typeof J$ === 'undefined') {
             try {
                 var jalangiRoot = getJalangiRoot();
                 var rewriteOptions = {
+                    onBeforeNodeVisited: function (node) {
+                        if (htmlVisitor.beforeVisitor) {
+                            htmlVisitor.beforeVisitor(node, inlineRewriter);
+                        }
+                    },
                     onNodeVisited: function (node) {
                         var newNode;
 
                         if (htmlVisitor.visitor) {
-                            htmlVisitor.visitor(node);
+                            htmlVisitor.visitor(node, inlineRewriter);
                         }
 
                         switch (node.tagName) {
