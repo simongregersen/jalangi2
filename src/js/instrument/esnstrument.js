@@ -375,9 +375,8 @@ if (typeof J$ === 'undefined') {
             );
             transferLoc(ret, node);
             return ret;
-        } else {
-            return val;
         }
+        return val;
     }
 
 //    function wrapReadWithUndefinedCheck(node, name) {
@@ -403,9 +402,8 @@ if (typeof J$ === 'undefined') {
         //    );
         //} else {
             ret = replaceInExpr(
-                "(" + logIFunName + "(typeof (" + name + ") === 'undefined'? (" + RP + "2) : (" + RP + "3)))",
-                createIdentifierAst(name),
-                wrapRead(node, createLiteralAst(name), createIdentifierAst("undefined"), false, true, false),
+                "(" + logIFunName + "(typeof (" + name + ") === 'undefined'? (" + RP + "1) : (" + RP + "2)))",
+                wrapRead(node, createLiteralAst(name), acorn.parse("J$.undef").body[0].expression, false, true, false),
                 wrapRead(node, createLiteralAst(name), createIdentifierAst(name), true, true, false)
             );
 //        }

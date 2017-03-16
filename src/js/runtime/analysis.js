@@ -934,4 +934,6 @@ if (typeof J$ === 'undefined') {
     sandbox.strictMode = Symbol();
 
     sandbox.cf = null; // current function
+
+    sandbox.undef = undefined; // current function
 })(J$);
