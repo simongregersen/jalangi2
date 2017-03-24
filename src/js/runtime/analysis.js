@@ -420,6 +420,12 @@ if (typeof J$ === 'undefined') {
         return val;
     }
 
+    function Wr(iid, val) {
+        if (sandbox.analysis && sandbox.analysis.withBodyExit) {
+            sandbox.analysis.withBodyExit(iid, val);
+        }
+    }
+
     // Uncaught exception
     function Ex(iid, e) {
         wrappedExceptionVal = {exception:e};
@@ -900,6 +906,7 @@ if (typeof J$ === 'undefined') {
     sandbox.L = L;
     sandbox.X1 = X1; // top level expression
     sandbox.Wi = Wi; // with statement
+    sandbox.Wr = Wr;
     sandbox.endExecution = endExecution;
 
     sandbox.Le = Le; // Loop enter

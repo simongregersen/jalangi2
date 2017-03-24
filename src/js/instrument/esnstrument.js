@@ -108,6 +108,7 @@ if (typeof J$ === 'undefined') {
     var logTryCatchFinallyExceptionFunName = JALANGI_VAR + ".TCAx";
 
     var logWithFunName = JALANGI_VAR + ".Wi";
+    var logWithExitFunName = JALANGI_VAR + ".Wr";
     var logBinaryOpFunName = JALANGI_VAR + ".B";
     var logUnaryOpFunName = JALANGI_VAR + ".U";
     var logConditionalFunName = JALANGI_VAR + ".C";
@@ -1769,7 +1770,11 @@ if (typeof J$ === 'undefined') {
         },
         "WithStatement": function (node) {
             node.object = wrapWith(node.object);
-            return node;
+            var result = replaceInStatement(
+                "try { " + RP + "1 } finally { " + logWithExitFunName + "(); }",
+                [node]
+            );
+            return result[0];
         },
         "ConditionalExpression": funCond,
         "IfStatement": funCond,
