@@ -956,22 +956,11 @@ if (typeof J$ === 'undefined') {
             callee = node.id.name;
         }
 
-        var ret = null;
-        if (node.currentFunctionVar === callee) {
-            ret = replaceInStatement(
-                logFunctionEnterFunName + "(" + RP + "1, " + callee + ", this, arguments)",
-                getIid(node)
-            );
-
-            transferLoc(ret[0].expression, node);
-        } else {
-            ret = replaceInStatement(
-                "var " + node.currentFunctionVar + " = " + logFunctionEnterFunName + "(" + RP + "1, " + callee + ", this, arguments)",
-                getIid(node)
-            );
-
-            transferLoc(ret[0].declarations[0].init, node);
-        }
+        var ret = replaceInStatement(
+            "var " + node.currentFunctionVar + " = " + logFunctionEnterFunName + "(" + RP + "1, " + callee + ", this, arguments)",
+            getIid(node)
+        );
+        transferLoc(ret[0].declarations[0].init, node);
         return ret;
     }
 
