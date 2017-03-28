@@ -1571,7 +1571,7 @@ if (typeof J$ === 'undefined') {
             return ret1;
         },
         "FunctionExpression": function (node, context) {
-            if (!node.id) {
+            if (!node.id || node.scope.vars[node.id.name] === 'var') {
                 node.id = { type: 'Literal', name: mkFreshVar(), isSynthetic: true };
             }
             node.body.body = instrumentFunctionEntryExit(node, node.body.body);
