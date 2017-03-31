@@ -774,6 +774,9 @@ if (typeof J$ === 'undefined') {
             transferLoc(ret, node);
             return ret;
         }
+        if (node.operator === "void") {
+            return argument;
+        }
         return node;
     }
 
@@ -1715,6 +1718,7 @@ if (typeof J$ === 'undefined') {
         'UnaryExpression': function (node) {
             var ret;
             if (node.operator === "void") {
+                node.argument = wrapUnaryOp(node, node.argument, node.operator);
                 return node;
             } else if (node.operator === "delete") {
                 if (node.argument.object) {
