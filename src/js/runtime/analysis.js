@@ -40,7 +40,7 @@ if (typeof J$ === 'undefined') {
     var global = this;
     var Function = global.Function;
     var returnStack = [];
-    var tryCatchFinallyExceptionVal;
+    var tryCatchFinallyExceptionVals = [];
     var wrappedExceptionVal;
     var lastVal;
     var switchLeft;
@@ -818,7 +818,7 @@ if (typeof J$ === 'undefined') {
     }
 
     function Te(iid, flags) {
-        tryCatchFinallyExceptionVal = null;
+        tryCatchFinallyExceptionVals.push(null);
         if (sandbox.analysis && sandbox.analysis.tryEnter) {
             var bFlags = decodeBitPattern(flags, 2);
             sandbox.analysis.tryEnter(iid, bFlags[0], bFlags[1]);
@@ -828,7 +828,7 @@ if (typeof J$ === 'undefined') {
     function Tr(iid, flags) {
         if (sandbox.analysis && sandbox.analysis.tryExit) {
             var bFlags = decodeBitPattern(flags, 2);
-            sandbox.analysis.tryExit(iid, bFlags[0], bFlags[1], tryCatchFinallyExceptionVal);
+            sandbox.analysis.tryExit(iid, bFlags[0], bFlags[1], tryCatchFinallyExceptionVals.pop());
         }
     }
 
@@ -857,7 +857,9 @@ if (typeof J$ === 'undefined') {
     }
 
     function TCAx(exception) {
-        tryCatchFinallyExceptionVal = { exception: exception };
+        // replace null in the stack by the exception object
+        tryCatchFinallyExceptionVals.pop();
+        tryCatchFinallyExceptionVals.push({ exception: exception });
         throw exception;
     }
 
