@@ -174,8 +174,12 @@ if (typeof J$ === 'undefined') {
     var iidSourceInfo;
     var nxtFreshVar = 1;
 
+    // mkFreshVar does not check for whether the generated variable already exists;
+    // this is "fixed" by using this random number.
+    var rand = Math.round(Math.random() * 10000000000);
+
     function mkFreshVar(scope) {
-        var name = "J$__v" + nxtFreshVar++
+        var name = "J$__v" + rand + "_" + nxtFreshVar++
         if (scope) {
             scope.addVar(name, "tmp");
         }
