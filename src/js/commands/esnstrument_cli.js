@@ -20,10 +20,14 @@
 /*global astUtil acorn esotope J$ */
 
 //var StatCollector = require('../utils/StatCollector');
-if (typeof J$ === 'undefined') {
-    J$ = {};
-}
 
+if (typeof J$ === 'undefined') {
+    Object.defineProperty(/*global*/ typeof window === 'undefined' ? global : window, 'J$', { // J$ = {}
+        configurable: false,
+        enumerable: false,
+        value: {}
+    });
+}
 
 (function (sandbox) {
     acorn = require("acorn");

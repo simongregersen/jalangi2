@@ -23,7 +23,11 @@
 // wrap in anonymous function to create local namespace when in browser
 // create / reset J$ global variable to hold analysis runtime
 if (typeof J$ === 'undefined') {
-    J$ = {};
+    Object.defineProperty(/*global*/ typeof window === 'undefined' ? global : window, 'J$', { // J$ = {}
+        configurable: false,
+        enumerable: false,
+        value: {}
+    });
 }
 
 (function (sandbox) {
