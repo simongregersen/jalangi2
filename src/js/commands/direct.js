@@ -81,11 +81,13 @@ var initParam = null;
 if (args.initParam) {
     initParam = {};
     args.initParam.forEach(function (keyVal) {
-        var split = keyVal.split(':');
-        if (split.length !== 2) {
+        var keyLength = keyVal.indexOf(':');
+        if (keyLength < 0) {
             throw new Error("invalid initParam " + keyVal);
         }
-        initParam[split[0]] = split[1];
+        var key = keyVal.substring(0, keyLength);
+        var value = keyVal.substring(keyLength + 1);
+        initParam[key] = value;
     });
 }
 runAnalysis(initParam);
