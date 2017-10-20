@@ -128,7 +128,7 @@ function genInitParamsCode(initParams) {
             }
             var key = keyVal.substring(0, keyLength);
             var value = keyVal.substring(keyLength + 1);
-            initParam[key] = value;
+            initParamsObj[key] = value;
         });
     }
     return "<script data-jalangi=\"1\">J$.initParams = " + JSON.stringify(initParamsObj) + ";</script>";
