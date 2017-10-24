@@ -31,7 +31,7 @@ import sj
 print('Jalangi home is ' + JALANGI_HOME)
 print('Current working directory is ' + WORKING_DIR)
 
-jalangiArgs = ''
+jalangiArgs = []
 useCache = True
 ignore = []
 
@@ -56,7 +56,8 @@ def processFile (flow, content, ext):
             with open(fileName, 'w') as file:
                 file.write(sj.encode_input(content))
             sub_env = { 'JALANGI_URL': url }
-            sj.execute(sj.INSTRUMENTATION_SCRIPT + ' ' + jalangiArgs + ' ' + fileName + ' --out ' + instrumentedFileName + ' --outDir ' + os.path.dirname(instrumentedFileName), None, sub_env)
+            args = jalangiArgs + [fileName, '--out', instrumentedFileName, '--outDir', os.path.dirname(instrumentedFileName)]
+            sj.execute(sj.INSTRUMENTATION_SCRIPT, args, None, sub_env)
         else:
             print('Already instrumented: ' + fileName + ' from ' + url)
         with open (instrumentedFileName, "r") as file:
@@ -102,8 +103,10 @@ def _start(argv):
         if p.startswith('--'):
             return p
         path = os.path.abspath(os.path.join(WORKING_DIR, p))
-        return path if (os.path.isfile(path) or os.path.isdir(path)) else p.replace('"', '\"')
-    jalangiArgs = ' '.join(map(mapper, [x for x in argv[1:]]))
+        if os.path.isfile(path) or os.path.isdir(path):
+            return path
+        return p
+    jalangiArgs = map(mapper, [x for x in argv[1:]])
 
 if (mitmversion >= 0.18):
     @concurrent
