@@ -99,8 +99,10 @@ def _start(argv):
 
     # The remaining arguments are passed to jalangi
     def mapper(p):
+        if p.startswith('--'):
+            return p
         path = os.path.abspath(os.path.join(WORKING_DIR, p))
-        return path if not p.startswith('--') and (os.path.isfile(path) or os.path.isdir(path)) else p
+        return path if (os.path.isfile(path) or os.path.isdir(path)) else p.replace('"', '\"')
     jalangiArgs = ' '.join(map(mapper, [x for x in argv[1:]]))
 
 if (mitmversion >= 0.18):
