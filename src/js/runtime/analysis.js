@@ -168,7 +168,7 @@ if (typeof J$ === 'undefined') {
     function invokeFunctionDecl(base, f, args, iid) {
         // Invoke with the original parameters to preserve exceptional behavior if input is invalid
         f.apply(base, args);
-        
+
         // Otherwise input is valid, so instrument and invoke via eval
         var offset = 0;
 
@@ -219,7 +219,11 @@ if (typeof J$ === 'undefined') {
                 skip = aret.skip;
             }
         }
-        if (!skip) {
+        if (skip) {
+            if ('result' in aret) {
+                return aret.result;
+            }
+        } else {
             result = callFun(f, base, args, isConstructor, iid);
         }
         if (sandbox.analysis && sandbox.analysis.invokeFun) {
@@ -799,7 +803,7 @@ if (typeof J$ === 'undefined') {
     }
 
     function Le(iid) {
-        
+
     }
 
     function Lr(iid, type) {
