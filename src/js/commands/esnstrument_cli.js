@@ -96,6 +96,7 @@ if (typeof J$ === 'undefined') {
                         instCodeFileName: sanitizePath(instname),
                         inlineSourceMap: inlineIID,
                         inlineSource: inlineSource,
+                        skipWrappingOfScript: metadata.type === 'event-handler',
                         url: url
                     });
 

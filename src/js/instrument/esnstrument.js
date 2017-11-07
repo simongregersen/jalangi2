@@ -1672,6 +1672,18 @@ if (typeof J$ === 'undefined') {
         }
     };
 
+    var visitorRRPostNoScriptWrapping = {
+        Program: function (node) {
+            scope = scope.parent;
+            return node;
+        }
+    };
+    for (var visitor in visitorRRPost) {
+        if (visitor !== 'Program') {
+            visitorRRPostNoScriptWrapping[visitor] = visitorRRPost[visitor];
+        }
+    }
+
     function funCond(node) {
         if (!node.test) {
             // If test is omitted (e.g., for(;;)) then change it to the literal true
@@ -1794,6 +1806,17 @@ if (typeof J$ === 'undefined') {
         "DoWhileStatement": funCond,
         "ForStatement": funCond
     };
+
+    var visitorOpsNoScriptWrapping = {
+        Program: function (node) {
+            return node;
+        }
+    };
+    for (var visitor in visitorOps) {
+        if (visitor !== 'Program') {
+            visitorOpsNoScriptWrapping[visitor] = visitorOps[visitor];
+        }
+    }
 
     function addScopes(ast) {
         function Scope(parent, isCatch) {
@@ -2137,6 +2160,8 @@ if (typeof J$ === 'undefined') {
                 var newAst;
                 if (Config.ENABLE_SAMPLING) {
                     newAst = transformString(code, [visitorCloneBodyPre, visitorRRPost, visitorOps, visitorMergeBodyPre], [undefined, visitorRRPre, undefined, undefined]);
+                } else if (options.skipWrappingOfScript) {
+                    newAst = transformString(code, [visitorRRPostNoScriptWrapping, visitorOpsNoScriptWrapping], [visitorRRPre, undefined]);
                 } else {
                     newAst = transformString(code, [visitorRRPost, visitorOps], [visitorRRPre, undefined]);
                 }
