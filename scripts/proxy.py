@@ -140,7 +140,7 @@ def _response(flow):
                 csp_key = key
 
         if content_type:
-            if content_type.find('javascript') >= 0:
+            if content_type.find('javascript') >= 0 or content_type == 'text/x-js':
                 flow.response.content = processFile(flow, flow.response.content, 'js')
             if content_type.find('html') >= 0 and looks_like_html(flow.response.content):
                 flow.response.content = processFile(flow, flow.response.content, 'html')
