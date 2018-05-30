@@ -881,6 +881,25 @@ if (typeof J$ === 'undefined') {
         }
     }
 
+    function Taint(iid, name, init) {
+      var ret = false;
+      if (sandbox.analysis && sandbox.analysis.taint) {
+        var taint = sandbox.analysis.taint(iid, name, init);
+        if (taint) ret = taint.result;
+
+      }
+      return (lastComputedValue = ret);
+    }
+
+  function Sink(iid, name, init) {
+      var ret = false;
+      if (sandbox.analysis && sandbox.analysis.sink) {
+        var sink = sandbox.analysis.sink(iid, name, init);
+        if (sink) ret = sink.result;
+      }
+      return (lastComputedValue = ret);
+    }
+
 
     //----------------------------------- End Jalangi Library backend ---------------------------------
 
@@ -953,4 +972,7 @@ if (typeof J$ === 'undefined') {
     sandbox.cf = null; // current function
 
     sandbox.undef = undefined; // current function
+
+    sandbox.Taint = Taint;
+    sandbox.Sink = Sink;
 })(J$);

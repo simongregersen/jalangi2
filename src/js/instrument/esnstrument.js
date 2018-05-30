@@ -122,6 +122,9 @@ if (typeof J$ === 'undefined') {
     var logLastFunName = JALANGI_VAR + "._";
     var logX1FunName = JALANGI_VAR + ".X1";
 
+    var logTaintFunName = JALANGI_VAR + ".Taint";
+    var logSinkFunName = JALANGI_VAR + ".Sink";
+
     var instrumentCodeFunName = JALANGI_VAR + ".instrumentEvalCode";
 
     function createBitPattern() {
@@ -183,7 +186,7 @@ if (typeof J$ === 'undefined') {
     var rand = Math.round(Math.random() * 10000000000);
 
     function mkFreshVar(scope) {
-        var name = "J$__v" + rand + "_" + nxtFreshVar++
+        var name = "J$__v" + rand + "_" + nxtFreshVar++;
         if (scope) {
             scope.addVar(name, "tmp");
         }
@@ -1107,6 +1110,30 @@ if (typeof J$ === 'undefined') {
         }
     }
 
+    function wrapWithTaint(node, name, init) {
+        printIidToLoc(node);
+        var ret = replaceInExpr(
+            logTaintFunName + "(" + RP + "1," + RP + "2," + RP + "3)",
+            getIid(),
+            createLiteralAst(name),
+            init
+        );
+        transferLoc(ret, node);
+        return ret;
+    }
+
+    function wrapWithSink(node, name, init) {
+        printIidToLoc(node);
+        var ret = replaceInExpr(
+            logSinkFunName + "(" + RP + "1," + RP + "2," + RP + "3)",
+            getIid(),
+            createLiteralAst(name),
+            init
+        );
+        transferLoc(ret, node);
+        return ret;
+    }
+
     function syncDefuns(node, scope, isScript) {
         var ret = [], ident;
         if (!isScript) {
@@ -1537,6 +1564,13 @@ if (typeof J$ === 'undefined') {
                 if (def.init !== null) {
                     var init = wrapWrite(def.init, createLiteralAst(def.id.name), def.init, def.id, false, scope.isGlobal(def.id.name), true);
                     init = wrapWithX1(def.init, init);
+                    if (def.id.trailingComments) {
+                      if (def.id.trailingComments[0].value.trim() === "@taint") {
+                        init = wrapWithTaint(def.init, def.id.name, init);
+                      } else if (def.id.trailingComments[0].value.trim() === "@sink") {
+                        init = wrapWithSink(def.init, def.id.name, init);
+                      }
+                    }
                     def.init = init;
                 }
                 return def;
@@ -2072,8 +2106,15 @@ if (typeof J$ === 'undefined') {
     function transformString(code, visitorsPost, visitorsPre) {
 //         StatCollector.resumeTimer("parse");
 //        console.time("parse")
-//        var newAst = esprima.parse(code, {loc:true, range:true});
-        var newAst = acorn.parse(code, { allowReturnOutsideFunction: true, locations: true, ecmaVersion: 6 });
+      //        var newAst = esprima.parse(code, {loc:true, range:true});
+      // var comments = [], tokens = [];
+      // var newAst = acorn.parse(code, { allowReturnOutsideFunction: true, locations: true, ranges: true,
+      //                                  onComments: comments, onToken: tokens, ecmaVersion: 6 });
+        var estraverse = require('estraverse');
+        var comments = [], tokens = [];
+        var newAst = acorn.parse(code, {locations: true, ranges: true, onComment: comments, onToken: tokens, ecmaVersion: 6 });
+        estraverse.attachComments(newAst, comments, tokens);
+
 //        console.timeEnd("parse")
 //        StatCollector.suspendTimer("parse");
 //        StatCollector.resumeTimer("transform");
